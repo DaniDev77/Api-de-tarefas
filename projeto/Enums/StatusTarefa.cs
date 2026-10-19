@@ -1,6 +1,10 @@
 ﻿namespace projeto.Enums
 {
-    public class StatusTarefa
+    public enum StatusTarefa
     {
+        AFazer = 1,
+        EmAndamento = 2,
+        Concluida = 3,
+        Cancelada = 4
     }
 }

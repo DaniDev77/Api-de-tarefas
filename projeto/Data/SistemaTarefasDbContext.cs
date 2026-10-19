@@ -1,6 +1,27 @@
-﻿namespace projeto.Data
+﻿using Microsoft.EntityFrameworkCore;
+using projeto.Data.Map;
+using projeto.Models;
+
+namespace projeto.Data
 {
-    public class SistemaTarefasDbContext
+    public class SistemaTarefasDbContext : DbContext
     {
+        public SistemaTarefasDbContext(DbContextOptions<SistemaTarefasDbContext> options)
+            : base(options)
+        {
+        }
+
+        public DbSet<UsuarioModel> Usuarios { get; set; }
+        public DbSet<TarefaModel> Tarefas { get; set; }
+        public DbSet<CategoriaModel> Categorias { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.ApplyConfiguration(new UsuarioMap());
+            modelBuilder.ApplyConfiguration(new TarefaMap());
+            modelBuilder.ApplyConfiguration(new CategoriaMap());
+
+            base.OnModelCreating(modelBuilder);
+        }
     }
 }
