@@ -20,11 +20,4 @@
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Data\Map\" />
-    <Folder Include="Enums\" />
-    <Folder Include="Models\" />
-    <Folder Include="Repositorios\Interfaces\" />
-  </ItemGroup>
-
 </Project>
