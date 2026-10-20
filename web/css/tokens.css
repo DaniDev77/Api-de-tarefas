@@ -1,0 +1,256 @@
+/* Tokens de design: toda cor, fonte e medida do app vem daqui.
+   Conceito: caderno pautado. A moldura (lateral + topo) é o papel azulado da capa; o conteúdo é uma
+   folha branca com a linha vermelha de margem. A tinta azul de caneta marca a ação principal e os dados;
+   o vermelho só aparece para o que venceu ou para excluir.
+   Estilo de app: "editorial-greeting" (taste-skill), com a paleta e as fontes da marca mantidas. */
+
+@font-face {
+  font-family: 'Hanken Grotesk';
+  src: url('../assets/fonts/hanken-grotesk.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('../assets/fonts/bricolage-grotesque.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+
+  /* moldura, folha e painéis tonais */
+  --papel: #eff2f8; /* moldura: lateral + topo */
+  --folha: #ffffff; /* a folha onde fica o conteúdo; também campos e cartões */
+  --painel: #f6f8fc; /* painel tonal, um passo fora do branco */
+  --folha-2: #f2f5fa; /* passar o mouse */
+  --folha-3: #e8ecf4; /* item ativo, selos, trilhos */
+  --tinta: #141834;
+  --tinta-2: #4b5272;
+  --tinta-3: #5f6784;
+  --pauta: #e2e6ef; /* bordas de cartões e da folha */
+  --pauta-leve: #edf0f6; /* linhas entre itens */
+  --pauta-forte: #cdd4e2; /* bordas de controles */
+
+  /* caneta: a ação principal e o dado principal (menos de 2% da tela) */
+  --caneta: #2a45d4;
+  --caneta-botao: #2a45d4;
+  --caneta-botao-hover: #2038b8;
+  --caneta-suave: #e6ebff;
+  --caneta-texto: #2a45d4;
+
+  /* margem: o que venceu, o que exclui */
+  --margem: #dc3f57;
+  --margem-texto: #b8283e;
+  --margem-suave: #fdecef;
+  --margem-viva: #ff8a99;
+
+  --ambar-texto: #8f5300;
+  --ambar-suave: #fff4df;
+  --verde-texto: #18744d;
+  --verde-suave: #e2f5eb;
+
+  /* status (validadas para daltonismo; sempre com ícone + texto) */
+  --st-1: #8a92ae;
+  --st-2: #2a45d4;
+  --st-3: #16a36a;
+  --st-4: #b3b9ca;
+
+  /* prioridade: escala de severidade */
+  --pr-1: #8c93ad;
+  --pr-2: #5a6fe0;
+  --pr-3: #d98a00;
+  --pr-4: #dc3f57;
+
+  /* categorias: identidade (como a cor de cada pessoa), ordem fixa pelo ID */
+  --cat-0: #2a78d6;
+  --cat-1: #eb6834;
+  --cat-2: #1baf7a;
+  --cat-3: #eda100;
+  --cat-4: #e87ba4;
+  --cat-5: #008300;
+  --cat-6: #6250d6;
+  --cat-7: #e34948;
+
+  /* avatares: um tom claro por pessoa */
+  --av-0: #dfe5ff;
+  --av-0-t: #2238a8;
+  --av-1: #ffe4d4;
+  --av-1-t: #8f3a0a;
+  --av-2: #d8f3e6;
+  --av-2-t: #0b6340;
+  --av-3: #f3e1ff;
+  --av-3-t: #63288d;
+  --av-4: #ffe0e6;
+  --av-4-t: #962039;
+  --av-5: #e2eef7;
+  --av-5-t: #24506f;
+
+  --on-status: #ffffff;
+  --toast-fundo: #141834;
+  --toast-texto: #f3f5fb;
+  --toast-acao: #b7c3ff;
+
+  /* tipografia: Hanken para tudo; Bricolage só para nomes (a marca e o título de cada tela) */
+  --fonte-ui: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fonte-titulo: 'Bricolage Grotesque', 'Hanken Grotesk', system-ui, sans-serif;
+  --t-xs: 0.75rem; /* 12 */
+  --t-s: 0.8125rem; /* 13 */
+  --t-m: 0.875rem; /* 14 */
+  --t-l: 1rem; /* 16 */
+  --t-xl: 1.25rem; /* 20 */
+  --t-2xl: 1.5rem; /* 24 */
+  --t-3xl: 1.875rem; /* 30 */
+
+  /* espaço (base 4), raio (estilo suave), movimento */
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 20px;
+  --e-6: 24px;
+  --e-8: 32px;
+  --e-10: 40px;
+  --gutter: 16px;
+  --r-s: 8px;
+  --r-m: 10px;
+  --r-l: 16px;
+  --r-xl: 16px;
+  --sombra-1: none;
+  --sombra-flutua: 0 2px 6px rgb(20 24 52 / 0.08), 0 18px 48px -16px rgb(20 24 52 / 0.32);
+  --curva: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --rapido: 140ms;
+  --medio: 200ms;
+
+  --largura-lateral: 232px;
+  --altura-topo: 48px;
+  --coluna: 1100px; /* 12 colunas de 77px + 11 calhas de 16px = 1100 */
+}
+
+/* tema escuro: cinzas neutros (sem azul-marinho), segue o sistema a menos que a pessoa escolha "claro" */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro']) {
+    color-scheme: dark;
+    --papel: #151517;
+    --folha: #0e0e10;
+    --painel: #19191c;
+    --folha-2: #1d1d21;
+    --folha-3: #27272c;
+    --tinta: #f2f2f4;
+    --tinta-2: #b9b9c1;
+    --tinta-3: #96969f;
+    --pauta: #28282d;
+    --pauta-leve: #202024;
+    --pauta-forte: #3b3b42;
+    --caneta: #8a9bff;
+    --caneta-botao: #4a60ec;
+    --caneta-botao-hover: #5b70f5;
+    --caneta-suave: rgb(115 137 255 / 0.16);
+    --caneta-texto: #9aa9ff;
+    --margem: #ff6b80;
+    --margem-texto: #ff8a9a;
+    --margem-suave: rgb(255 107 128 / 0.13);
+    --margem-viva: #ff8a99;
+    --ambar-texto: #f2b54a;
+    --ambar-suave: rgb(242 181 74 / 0.13);
+    --verde-texto: #4fd197;
+    --verde-suave: rgb(79 209 151 / 0.12);
+    --st-1: #858ca6;
+    --st-2: #7389ff;
+    --st-3: #1f9a62;
+    --st-4: #5d6276;
+    --pr-1: #80869e;
+    --pr-2: #8a9bff;
+    --pr-3: #e3a21a;
+    --pr-4: #ff6b80;
+    --cat-0: #3987e5;
+    --cat-1: #d95926;
+    --cat-2: #199e70;
+    --cat-3: #c98500;
+    --cat-4: #d55181;
+    --cat-5: #008300;
+    --cat-6: #9085e9;
+    --cat-7: #e66767;
+    --av-0: rgb(115 137 255 / 0.2);
+    --av-0-t: #b9c4ff;
+    --av-1: rgb(235 104 52 / 0.2);
+    --av-1-t: #ffb48f;
+    --av-2: rgb(27 175 122 / 0.2);
+    --av-2-t: #7fe0b5;
+    --av-3: rgb(170 110 230 / 0.22);
+    --av-3-t: #dcb8ff;
+    --av-4: rgb(255 107 128 / 0.2);
+    --av-4-t: #ffadb9;
+    --av-5: rgb(110 170 210 / 0.2);
+    --av-5-t: #a9d3ef;
+    --on-status: #0e0e10;
+    --toast-fundo: #f2f2f4;
+    --toast-texto: #141416;
+    --toast-acao: #2f43c4;
+    --sombra-flutua: 0 2px 8px rgb(0 0 0 / 0.45), 0 24px 60px -18px rgb(0 0 0 / 0.8);
+  }
+}
+
+:root[data-tema='escuro'] {
+  color-scheme: dark;
+  --papel: #151517;
+  --folha: #0e0e10;
+  --painel: #19191c;
+  --folha-2: #1d1d21;
+  --folha-3: #27272c;
+  --tinta: #f2f2f4;
+  --tinta-2: #b9b9c1;
+  --tinta-3: #96969f;
+  --pauta: #28282d;
+  --pauta-leve: #202024;
+  --pauta-forte: #3b3b42;
+  --caneta: #8a9bff;
+  --caneta-botao: #4a60ec;
+  --caneta-botao-hover: #5b70f5;
+  --caneta-suave: rgb(115 137 255 / 0.16);
+  --caneta-texto: #9aa9ff;
+  --margem: #ff6b80;
+  --margem-texto: #ff8a9a;
+  --margem-suave: rgb(255 107 128 / 0.13);
+  --margem-viva: #ff8a99;
+  --ambar-texto: #f2b54a;
+  --ambar-suave: rgb(242 181 74 / 0.13);
+  --verde-texto: #4fd197;
+  --verde-suave: rgb(79 209 151 / 0.12);
+  --st-1: #858ca6;
+  --st-2: #7389ff;
+  --st-3: #1f9a62;
+  --st-4: #5d6276;
+  --pr-1: #80869e;
+  --pr-2: #8a9bff;
+  --pr-3: #e3a21a;
+  --pr-4: #ff6b80;
+  --cat-0: #3987e5;
+  --cat-1: #d95926;
+  --cat-2: #199e70;
+  --cat-3: #c98500;
+  --cat-4: #d55181;
+  --cat-5: #008300;
+  --cat-6: #9085e9;
+  --cat-7: #e66767;
+  --av-0: rgb(115 137 255 / 0.2);
+  --av-0-t: #b9c4ff;
+  --av-1: rgb(235 104 52 / 0.2);
+  --av-1-t: #ffb48f;
+  --av-2: rgb(27 175 122 / 0.2);
+  --av-2-t: #7fe0b5;
+  --av-3: rgb(170 110 230 / 0.22);
+  --av-3-t: #dcb8ff;
+  --av-4: rgb(255 107 128 / 0.2);
+  --av-4-t: #ffadb9;
+  --av-5: rgb(110 170 210 / 0.2);
+  --av-5-t: #a9d3ef;
+  --on-status: #0e0e10;
+  --toast-fundo: #f2f2f4;
+  --toast-texto: #141416;
+  --toast-acao: #2f43c4;
+  --sombra-flutua: 0 2px 8px rgb(0 0 0 / 0.45), 0 24px 60px -18px rgb(0 0 0 / 0.8);
+}
