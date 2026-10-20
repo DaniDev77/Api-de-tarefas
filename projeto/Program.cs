@@ -6,8 +6,29 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// CORS: autoriza o frontend (pasta web, aberta pelo Live Server) a chamar esta API pelo navegador.
+// Em desenvolvimento libera qualquer origem; em producao, so as origens listadas em appsettings.json.
+var origensFrontend = builder.Configuration.GetSection("Frontend:Origens").Get<string[]>() ?? [];
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        if (builder.Environment.IsDevelopment())
+            policy.AllowAnyOrigin();
+        else
+            policy.WithOrigins(origensFrontend);
+
+        policy.AllowAnyHeader().AllowAnyMethod();
+    });
+});
+
 // Add services to the container.
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // Permite Descricao e Telefone vazios (""). Sem isso o [ApiController] trata
+        // toda string nao-anulavel como [Required] e devolve 400 para campos opcionais.
+        options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
@@ -35,6 +56,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("Frontend");
 
 app.UseAuthorization();
 
