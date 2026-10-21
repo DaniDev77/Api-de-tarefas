@@ -89,7 +89,13 @@ export async function requisicao(baseUrl, caminho, { metodo = 'GET', corpo, time
     clearTimeout(timer);
   }
 
-  const texto = await resposta.text();
+  // a conexão pode cair no meio da resposta (API reiniciando): vira o mesmo erro traduzido de rede
+  let texto;
+  try {
+    texto = await resposta.text();
+  } catch {
+    throw new ApiError('A conexão com a API caiu no meio da resposta. Tente de novo.', { tipo: 'rede' });
+  }
   const tipoConteudo = resposta.headers.get('content-type') || '';
   let dados = texto;
   if (texto && tipoConteudo.includes('json')) {

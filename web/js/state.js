@@ -73,7 +73,8 @@ export async function carregarTudo() {
     if (id !== cargaAtual) return;
     if (jaPronto) {
       store.set({ sincronizando: false });
-      toast(erro.message, { tipo: 'erro' });
+      // uma sincronização em segundo plano que falha não mostra mensagem crua do navegador
+      toast(erro?.name === 'ApiError' ? erro.message : 'Não foi possível sincronizar com a API agora. Os dados na tela continuam valendo.', { tipo: 'erro' });
       return;
     }
     store.set({ fase: 'erro', erro, sincronizando: false });
