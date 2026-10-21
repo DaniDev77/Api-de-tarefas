@@ -1,75 +1,121 @@
 // Fonte de dados de demonstração: mesma interface da API, guardada no navegador (localStorage).
-// Serve para apresentar o sistema sem a API ligada e para não travar quem ainda está configurando.
+// Gera a rotina de uma pessoa fictícia com dez semanas de histórico e quatro semanas pela frente,
+// para o Progresso já abrir com dados de verdade. O sorteio é fixo (mesma semente), então a
+// demonstração é igual em todo computador.
 import { ler, gravar, remover } from '../core/storage.js';
-import { paraApi } from '../core/format.js';
+import { paraApi, inicioDoDia, somarDias } from '../core/format.js';
 import { normalizarUsuario, normalizarCategoria, normalizarTarefa } from './api.js';
 import { ApiError } from './http.js';
+import { minutosDeTexto, DIAS_UTEIS, TODOS_OS_DIAS } from '../domain/rotina.js';
 
-const CHAVE = 'demo:v2';
-const espera = () => new Promise((r) => setTimeout(r, 120 + Math.random() * 140));
+const CHAVE = 'demo:rotina:v2';
+const espera = () => new Promise((r) => setTimeout(r, 90 + Math.random() * 120));
 
-function dataRelativa(dias, h = 18, m = 0) {
-  const d = new Date();
-  return paraApi(new Date(d.getFullYear(), d.getMonth(), d.getDate() + dias, h, m));
+/** Gerador pseudoaleatório com semente (mulberry32): o mesmo número sempre gera a mesma sequência. */
+function sorteio(semente) {
+  let a = semente >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
+// [título, área, dias da semana, horários, chance de cumprir em cada horário, até quantos dias à frente]
+const HABITOS = [
+  ['Acordar', 2, DIAS_UTEIS, ['06:30'], [0.86]],
+  ['Arrumar a cama', 5, TODOS_OS_DIAS, ['06:45'], [0.9]],
+  ['Tomar vitamina', 1, TODOS_OS_DIAS, ['07:00'], [0.88]],
+  ['Beber água', 1, TODOS_OS_DIAS, ['09:00', '12:00', '15:00', '18:00'], [0.95, 0.9, 0.79, 0.7]],
+  ['Academia', 3, [1, 3, 5], ['18:30'], [0.78]],
+  ['Caminhar 30 min', 3, [6], ['08:00'], [0.72]],
+  ['Estudar 1 h', 4, DIAS_UTEIS, ['20:00'], [0.72]],
+  ['Ler 20 min', 4, TODOS_OS_DIAS, ['22:30'], [0.56], 5], // acaba em breve: a Rotina pede para estender
+  ['Planejar a semana', 5, [0], ['19:00'], [0.82]],
+];
+
+// itens avulsos: [título, área, dias a partir de hoje, horário, descrição]
+const AVULSOS = [
+  ['Consulta no dentista', 1, 1, '14:00', 'Levar a carteirinha do plano.'],
+  ['Entregar trabalho da faculdade', 4, 2, '19:00', ''],
+  ['Pagar a conta de luz', 5, 4, '10:00', 'Vence no dia 25.'],
+  ['Comprar tênis de corrida', 3, -9, '17:00', ''],
+  ['Renovar a matrícula da academia', 3, -16, '12:00', ''],
+];
+
+const HISTORICO_DIAS = 119; // 17 semanas: o mapa de constância do Progresso abre cheio
+const FUTURO_DIAS = 27;
+
 function semente() {
-  const usuarios = [
-    { id: 1, nome: 'Ana Beatriz Rocha', email: 'ana.rocha@tramela.com.br', telefone: '(14) 99812-3344' },
-    { id: 2, nome: 'Bruno Tavares', email: 'bruno.tavares@tramela.com.br', telefone: '(14) 99603-1188' },
-    { id: 3, nome: 'Camila Nogueira', email: 'camila.nogueira@tramela.com.br', telefone: '(11) 98455-2010' },
-    { id: 4, nome: 'Diego Martins', email: 'diego.martins@tramela.com.br', telefone: '(14) 3224-5070' },
-    { id: 5, nome: 'Fernanda Alves', email: 'fernanda.alves@tramela.com.br', telefone: '' },
-  ];
+  const agora = new Date();
+  const hoje = inicioDoDia(agora);
+  const usuarios = [{ id: 1, nome: 'Marina Couto', email: 'marina.couto@exemplo.com', telefone: '(14) 99812-3344' }];
   const categorias = [
-    { id: 1, nome: 'Desenvolvimento', descricao: 'Código, correções e publicações do app.' },
-    { id: 2, nome: 'Design', descricao: 'Interface, protótipos e identidade visual.' },
-    { id: 3, nome: 'Atendimento', descricao: 'Chamados, reuniões e relacionamento com clientes.' },
-    { id: 4, nome: 'Financeiro', descricao: 'Notas, orçamentos e contratos.' },
-    { id: 5, nome: 'Marketing', descricao: 'Campanhas, conteúdo e pesquisas.' },
-    { id: 6, nome: 'Estudos', descricao: 'Cursos e capacitação da equipe.' },
+    { id: 1, nome: 'Saúde', descricao: 'Água, vitaminas e cuidados com o corpo.' },
+    { id: 2, nome: 'Sono', descricao: 'Hora de acordar e de dormir.' },
+    { id: 3, nome: 'Treino', descricao: 'Academia, caminhadas e esportes.' },
+    { id: 4, nome: 'Estudos', descricao: 'Estudo, leitura e cursos.' },
+    { id: 5, nome: 'Casa', descricao: 'Tarefas de casa e organização.' },
   ];
-  // [titulo, descricao, categoria, pessoa, prioridade, status, prazo (dias), hora, criada há (dias)]
-  const base = [
-    ['Corrigir cálculo de frete no checkout', 'Pedidos acima de 5 kg estão saindo com frete zerado.', 1, 2, 4, 2, 0, 17, 2],
-    ['Publicar versão 2.3 do app', 'Gerar build, revisar notas da versão e enviar para as lojas.', 1, 4, 3, 1, 2, 12, 6],
-    ['Revisar protótipo da tela de pedidos', '', 2, 3, 3, 2, 1, 16, 4],
-    ['Responder chamados pendentes da semana', 'Prioridade para os clientes do plano anual.', 3, 5, 2, 1, -1, 18, 5],
-    ['Conciliar notas fiscais de setembro', '', 4, 1, 3, 1, -3, 18, 12],
-    ['Planejar campanha de fim de ano', 'Definir canais, orçamento e calendário de posts.', 5, 3, 2, 1, 6, 18, 3],
-    ['Escrever testes do módulo de estoque', '', 1, 2, 2, 1, 4, 18, 2],
-    ['Atualizar política de privacidade', 'Incluir o novo uso de cookies de análise.', 3, 1, 1, 1, 9, 18, 7],
-    ['Migrar banco de homologação', '', 1, 4, 3, 3, -2, 18, 9],
-    ['Criar ícones do novo menu', '', 2, 3, 1, 3, -4, 18, 10],
-    ['Gravar vídeo tutorial de cadastro', 'Até 3 minutos, com legenda.', 5, 5, 2, 2, 3, 18, 4],
-    ['Estudar migrations do Entity Framework', 'Add-Migration, Update-Database e rollback.', 6, 4, 2, 1, 5, 20, 1],
-    ['Reunião de alinhamento com o cliente', 'Levar o cronograma atualizado.', 3, 1, 3, 1, 0, 23, 3],
-    ['Ajustar contraste do tema escuro', '', 2, 3, 2, 3, -1, 18, 6],
-    ['Renegociar plano do servidor', 'O fornecedor manteve o preço; seguimos no plano atual.', 4, 1, 2, 4, -5, 18, 15],
-    ['Documentar endpoints da API no Swagger', '', 1, 2, 1, 1, 11, 18, 2],
-    ['Pesquisa de satisfação com clientes', '', 5, 5, 1, 1, 13, 18, 1],
-    ['Enviar proposta comercial revisada', 'Aplicar o desconto de 8% aprovado na reunião.', 4, 1, 4, 1, 1, 10, 1],
-    ['Configurar backup automático', '', 1, 4, 3, 3, -6, 18, 14],
-    ['Revisar textos do onboarding', '', 2, 5, 2, 1, 7, 18, 3],
-    ['Curso de acessibilidade web', 'Módulos 3 a 5.', 6, 3, 1, 2, 12, 18, 8],
-    ['Fechar orçamento do trimestre', '', 4, 1, 3, 1, 8, 18, 4],
-    ['Corrigir layout do e-mail de boas-vindas', '', 1, 2, 2, 3, -3, 18, 7],
-    ['Organizar base de conhecimento', '', 3, 5, 1, 4, 2, 18, 11],
-    ['Treinamento da equipe de suporte', 'Novo fluxo de chamados.', 3, 5, 2, 1, 16, 9, 2],
-    ['Revisar acessibilidade do formulário de contato', '', 2, 3, 2, 1, 3, 18, 1],
-  ];
-  const tarefas = base.map(([titulo, descricao, categoriaId, usuarioId, prioridade, status, prazo, h, criada], i) => ({
-    id: i + 1,
-    titulo,
-    descricao,
-    dataCriacao: dataRelativa(-criada, 9 + (i % 8), (i * 7) % 60),
-    dataLimite: dataRelativa(prazo, h, 0),
-    status,
-    prioridade,
-    usuarioId,
-    categoriaId,
-  }));
-  return { usuarios, categorias, tarefas, seq: { usuarios: 5, categorias: 6, tarefas: tarefas.length } };
+  const tarefas = [];
+  let id = 0;
+  const minutoAgora = agora.getHours() * 60 + agora.getMinutes();
+
+  for (let dia = -HISTORICO_DIAS; dia <= FUTURO_DIAS; dia++) {
+    const d = somarDias(hoje, dia);
+    // as tarefas eram criadas em blocos de 4 semanas (como no botão "Estender")
+    const criadaEm = somarDias(hoje, Math.floor(dia / 28) * 28 - 1);
+    HABITOS.forEach(([titulo, area, dias, horarios, chances, ate = FUTURO_DIAS], h) => {
+      if (!dias.includes(d.getDay()) || dia > ate) return;
+      horarios.forEach((hh, i) => {
+        const m = minutosDeTexto(hh);
+        const quando = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(m / 60), m % 60);
+        const rnd = sorteio((dia + 1000) * 131 + h * 17 + i * 3);
+        let status = 1;
+        if (dia < 0) {
+          // fim de semana um pouco mais solto; as duas últimas semanas melhores (a rotina pegando)
+          let chance = chances[i] ?? chances[0];
+          if (d.getDay() === 0 || d.getDay() === 6) chance -= 0.08;
+          if (dia >= -14) chance += 0.06;
+          const x = rnd();
+          status = x < 0.035 ? 4 : x < chance ? 3 : 1;
+        } else if (dia === 0 && m < minutoAgora) {
+          // hoje: o que já passou está quase todo feito; a água mais recente ficou para trás
+          const ultimaAguaPassada = titulo === 'Beber água' && horarios.filter((x) => minutosDeTexto(x) < minutoAgora).at(-1) === hh;
+          status = ultimaAguaPassada ? 1 : rnd() < 0.92 ? 3 : 1;
+        }
+        tarefas.push({
+          id: ++id,
+          titulo,
+          descricao: '',
+          dataCriacao: paraApi(new Date(criadaEm.getFullYear(), criadaEm.getMonth(), criadaEm.getDate(), 21, 10)),
+          dataLimite: paraApi(quando),
+          status,
+          prioridade: 2,
+          usuarioId: 1,
+          categoriaId: area,
+        });
+      });
+    });
+  }
+  AVULSOS.forEach(([titulo, area, dia, hh, descricao]) => {
+    const d = somarDias(hoje, dia);
+    const m = minutosDeTexto(hh);
+    tarefas.push({
+      id: ++id,
+      titulo,
+      descricao,
+      dataCriacao: paraApi(somarDias(hoje, Math.min(dia, 0) - 3)),
+      dataLimite: paraApi(new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(m / 60), m % 60)),
+      status: dia < 0 ? 3 : 1,
+      prioridade: 3,
+      usuarioId: 1,
+      categoriaId: area,
+    });
+  });
+  return { usuarios, categorias, tarefas, seq: { usuarios: 1, categorias: categorias.length, tarefas: id } };
 }
 
 function carregar() {
@@ -113,7 +159,7 @@ function recurso(nome, normalizar, limpar) {
       await espera();
       const db = carregar();
       db[nome] = db[nome].filter((x) => x.id !== id);
-      // mesmo comportamento do banco: excluir pessoa/categoria apaga as tarefas ligadas (cascade)
+      // mesmo comportamento do banco: excluir pessoa/área apaga as tarefas ligadas (cascade)
       if (nome === 'usuarios') db.tarefas = db.tarefas.filter((t) => t.usuarioId !== id);
       if (nome === 'categorias') db.tarefas = db.tarefas.filter((t) => t.categoriaId !== id);
       gravar(CHAVE, db);
@@ -126,7 +172,7 @@ export function criarFonteDemo() {
   return {
     tipo: 'demo',
     testar: async () => true,
-    usuarios: recurso('usuarios', normalizarUsuario, (d) => ({ nome: d.nome.trim(), email: d.email.trim(), telefone: (d.telefone ?? '').trim() })),
+    usuarios: recurso('usuarios', normalizarUsuario, (d) => ({ nome: d.nome.trim(), email: (d.email ?? '').trim(), telefone: (d.telefone ?? '').trim() })),
     categorias: recurso('categorias', normalizarCategoria, (d) => ({ nome: d.nome.trim(), descricao: (d.descricao ?? '').trim() })),
     tarefas: recurso('tarefas', normalizarTarefa, (d) => ({
       titulo: d.titulo.trim(),

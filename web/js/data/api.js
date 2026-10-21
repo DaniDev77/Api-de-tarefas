@@ -1,4 +1,5 @@
 // Fonte de dados real: a API ASP.NET Core (Controllers Usuario, Categoria e Tarefa).
+// Na rotina: Usuario = perfil, Categoria = área, Tarefa = um item da pauta de um dia.
 // Os "normalizadores" convertem o JSON da API no formato que as telas usam
 // e descartam as navegações (usuario/categoria aninhados), que já temos no estado.
 import { requisicao } from './http.js';
@@ -29,8 +30,8 @@ export const normalizarTarefa = (t) => ({
   categoriaId: Number(t.categoriaId),
 });
 
-// Corpo enviado nos POST/PUT — exatamente as propriedades dos Models em C#.
-const corpoUsuario = (d, id = 0) => ({ id, nome: d.nome.trim(), email: d.email.trim(), telefone: (d.telefone ?? '').trim() });
+// Corpo enviado nos POST/PUT: exatamente as propriedades dos Models em C#.
+const corpoUsuario = (d, id = 0) => ({ id, nome: d.nome.trim(), email: (d.email ?? '').trim(), telefone: (d.telefone ?? '').trim() });
 const corpoCategoria = (d, id = 0) => ({ id, nome: d.nome.trim(), descricao: (d.descricao ?? '').trim() });
 const corpoTarefa = (d, id = 0) => ({
   id,
