@@ -215,6 +215,7 @@ O visual segue a skill **taste-skill** (`design-taste-frontend`), fluxo de telas
 | Funciona no Swagger, mas não no site | Certificado HTTPS não aceito neste navegador | Abra `https://localhost:7187/swagger` e aceite o aviso |
 | Erro de CORS no console (F12) | Falta `app.UseCors("Frontend")` | Veja o passo 1 |
 | Perfil não é criado sem e-mail | Falta o ajuste no `AddControllers` | Veja o passo 1 |
+| "Failed to fetch" depois de criar muitos hábitos | O JSON de `GET /api/Tarefa` crescia sem parar (usuário e categoria traziam todas as tarefas de novo) | `[JsonIgnore]` nas listas `Tarefas` de `UsuarioModel` e `CategoriaModel` (já aplicado); rode a API de novo |
 | Porta diferente de 7187 | Outro `launchSettings.json` | Ajuste em Ajustes > Endereço da API |
 | Mudei um arquivo e o navegador mostra o antigo | Cache do service worker | Recarregue com Ctrl+Shift+R |
 | Tela em branco abrindo o arquivo direto | Módulos não carregam em `file://` | Use o Live Server |
