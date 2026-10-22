@@ -14,11 +14,11 @@ function garantirRegiao() {
   return regiao;
 }
 
-const ICONES = { sucesso: 'check', erro: 'triangle-alert', info: 'circle-help' };
+const ICONES = { sucesso: 'check', erro: 'triangle-alert', info: 'circle-help', progresso: 'loader-circle' };
 
 /**
  * @param {string} mensagem
- * @param {{ tipo?: 'sucesso'|'erro'|'info', duracao?: number, acao?: { rotulo: string, fn: () => void }, detalhe?: string }} [opcoes]
+ * @param {{ tipo?: 'sucesso'|'erro'|'info'|'progresso', duracao?: number, acao?: { rotulo: string, fn: () => void }, detalhe?: string }} [opcoes]
  */
 export function toast(mensagem, { tipo = 'info', duracao, acao, detalhe } = {}) {
   const alvo = garantirRegiao();
@@ -26,7 +26,8 @@ export function toast(mensagem, { tipo = 'info', duracao, acao, detalhe } = {}) 
   const el = document.createElement('div');
   el.className = `toast toast--${tipo}`;
   el.setAttribute('role', tipo === 'erro' ? 'alert' : 'status');
-  el.style.setProperty('--duracao', `${tempo}ms`);
+  if (Number.isFinite(tempo)) el.style.setProperty('--duracao', `${tempo}ms`);
+  else el.classList.add('toast--fixo');
   render(
     el,
     html`<span class="toast__icone">${icone(ICONES[tipo], { tamanho: 16 })}</span>
@@ -50,7 +51,9 @@ export function toast(mensagem, { tipo = 'info', duracao, acao, detalhe } = {}) 
   };
   const agendar = () => {
     inicio = Date.now();
-    timer = setTimeout(fechar, restante);
+    clearTimeout(timer);
+    // notificação de progresso (duração infinita) só fecha quando o lote termina
+    if (Number.isFinite(restante)) timer = setTimeout(fechar, restante);
   };
   // pausa enquanto o mouse ou o foco estiverem na notificação
   const pausar = () => {
@@ -76,5 +79,16 @@ export function toast(mensagem, { tipo = 'info', duracao, acao, detalhe } = {}) 
   // no máximo 4 na tela
   while (alvo.children.length > 4) alvo.firstElementChild.remove();
   agendar();
+  // a função devolvida fecha a notificação; .atualizar(texto) troca a mensagem (progresso de um lote)
+  fechar.atualizar = (texto) => {
+    const p = el.querySelector('.toast__texto p');
+    if (p) p.textContent = texto;
+  };
+  fechar.agendar = (ms = 3200) => {
+    restante = ms;
+    el.classList.remove('toast--fixo');
+    el.style.setProperty('--duracao', `${ms}ms`);
+    agendar();
+  };
   return fechar;
 }

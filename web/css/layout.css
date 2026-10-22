@@ -1,11 +1,12 @@
-/* Estrutura: moldura em L (lateral + topo no mesmo papel azulado, sem linha entre eles)
-   e o conteúdo numa folha branca recuada 8px da direita e de baixo, com a linha vermelha de margem à esquerda. */
+/* Moldura do app.
+   Desktop (1024px ou mais): lateral de 228px no papel da moldura + folha branca afastada 8px da janela.
+   Celular e tablet: a folha vira a tela, com uma barra no topo (marca e uma ação) e abas embaixo.
+   Grade do conteúdo: 12 colunas de 77px com 16px entre elas = 1100px (12 × 77 + 11 × 16). */
 
 .app {
   display: grid;
-  grid-template-columns: var(--largura-lateral) minmax(0, 1fr);
+  grid-template-columns: var(--lateral) minmax(0, 1fr);
   min-height: 100dvh;
-  background: var(--papel);
 }
 
 /* ------------------------------------------------ lateral */
@@ -15,313 +16,298 @@
   top: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--e-5);
+  gap: var(--e-6);
   height: 100dvh;
-  padding: var(--e-4) var(--e-3) var(--e-3);
-  background: var(--papel);
+  padding: var(--e-5) var(--e-3) var(--e-4);
   overflow-y: auto;
-  z-index: 30;
 }
-
-.marca-link {
+.marca-bloco {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--e-3);
+  padding: 0 var(--e-2);
+}
+.marca-link {
+  display: inline-flex;
   align-items: center;
-  column-gap: 10px;
-  padding: var(--e-1) var(--e-2);
+  gap: 10px;
   color: var(--tinta);
+  font-size: 1.0625rem;
+  font-weight: 600;
   text-decoration: none;
-  border-radius: var(--r-m);
+  letter-spacing: -0.01em;
 }
-.marca-link .marca {
-  grid-row: span 2;
+.perfil-troca {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  width: 100%;
+  min-height: 40px;
+  padding: 6px var(--e-2);
+  margin-inline: calc(var(--e-2) * -1);
+  border-radius: 12px;
+  text-align: left;
+  transition: background-color var(--rapido);
 }
-.marca-nome {
-  font-family: var(--fonte-titulo);
-  font-size: var(--t-xl);
-  font-weight: 700;
-  font-variation-settings: 'opsz' 32;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+.perfil-troca:hover {
+  background: var(--painel-2);
 }
-.marca-escopo {
+.perfil-troca__texto {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+.perfil-troca__nome {
   overflow: hidden;
-  color: var(--tinta-3);
-  font-size: var(--t-xs);
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.perfil-troca__escopo {
+  color: var(--tinta-3);
+  font-size: var(--t-meta);
+}
+.perfil-troca .ico {
+  color: var(--tinta-3);
+}
+.inicial {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--painel-2);
+  color: var(--tinta);
+  font-size: var(--t-meta);
+  font-weight: 600;
+  flex: none;
 }
 
 .nav ul {
   display: grid;
   gap: 2px;
 }
-
 .nav__item {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 34px;
-  padding: 0 10px;
-  border-radius: var(--r-s);
+  min-height: 36px;
+  padding: 0 var(--e-3) 0 10px;
+  border-radius: 10px;
   color: var(--tinta-2);
-  font-size: var(--t-m);
-  font-weight: 500;
+  font-size: var(--t-corpo);
   text-decoration: none;
-  transition: background var(--rapido), color var(--rapido);
+  transition: background-color var(--rapido), color var(--rapido);
 }
 .nav__item:hover {
-  background: var(--folha-2);
+  background: var(--painel-2);
   color: var(--tinta);
 }
 .nav__item.ativo {
-  /* item ativo: pílula cinza neutra, rótulo em tinta (a cor fica para os dados) */
-  background: var(--folha-3);
+  background: var(--painel-2);
   color: var(--tinta);
+  font-weight: 500;
 }
-.nav__item .ico {
-  width: 16px;
-  height: 16px;
+.nav__item .conta {
+  margin-left: auto;
 }
 
-.nav__alerta {
-  display: flex;
-  align-items: center;
-  gap: var(--e-2);
-  margin: var(--e-3) 2px 0;
-  padding: var(--e-2) 10px;
-  border-radius: var(--r-s);
-  background: var(--margem-suave);
-  color: var(--margem-texto);
-  font-size: var(--t-s);
-  font-weight: 600;
+.foco-pilula {
+  display: grid;
+  gap: 2px;
+  padding: var(--e-3);
+  border-radius: var(--r-cartao);
+  background: var(--acento-suave);
+  color: var(--tinta);
   text-decoration: none;
 }
-.nav__alerta:hover {
-  text-decoration: underline;
+.foco-pilula__tempo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--acento-texto);
+  font-size: var(--t-meta);
+  font-weight: 600;
+}
+.foco-pilula__titulo {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lateral__rodape {
   display: grid;
-  gap: var(--e-1);
+  gap: var(--e-2);
   margin-top: auto;
 }
-
-.conexao-status {
+.estado-dados {
   display: flex;
   align-items: center;
   gap: var(--e-2);
-  padding: var(--e-2) 10px;
+  min-height: 32px;
+  padding: 0 var(--e-1) 0 10px;
   color: var(--tinta-3);
-  font-size: var(--t-xs);
+  font-size: var(--t-meta);
 }
-.conexao-status__ponto {
-  width: 8px;
-  height: 8px;
+.estado-dados__ponto {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  background: var(--positivo);
+  flex: none;
+}
+.estado-dados.demo .estado-dados__ponto {
+  background: var(--aviso);
+}
+.estado-dados.offline .estado-dados__ponto {
+  background: var(--negativo);
+}
+.estado-dados.carregando .estado-dados__ponto {
   background: var(--tinta-3);
-  flex-shrink: 0;
 }
-.conexao-status.online .conexao-status__ponto {
-  background: var(--st-3);
-}
-.conexao-status.demo .conexao-status__ponto {
-  background: var(--pr-3);
-}
-.conexao-status.offline .conexao-status__ponto {
-  background: var(--margem);
-}
-.conexao-status.carregando .conexao-status__ponto {
-  animation: pulsar 1.2s ease-in-out infinite;
+.estado-dados .botao-icone {
+  margin-left: auto;
 }
 
-/* ícones sol/lua conforme o tema ativo */
-.so-escuro {
-  display: none;
-}
-:root[data-tema='escuro'] .so-escuro {
-  display: block;
-}
-:root[data-tema='escuro'] .so-claro {
-  display: none;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-tema='claro']) .so-escuro {
-    display: block;
-  }
-  :root:not([data-tema='claro']) .so-claro {
-    display: none;
-  }
-}
-
-.lateral-fundo {
-  display: none;
-}
-
-/* ------------------------------------------------ topo (48px, no mesmo papel da lateral) */
-
-.principal {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.topo {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 548px) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--e-3);
-  height: var(--altura-topo);
-  padding: 0 var(--e-4) 0 var(--e-2);
-  background: var(--papel);
-}
-.topo__inicio,
-.topo__fim {
-  display: flex;
-  align-items: center;
-  gap: var(--e-1);
-}
-.topo__fim {
-  justify-content: flex-end;
-}
-.topo__menu,
-.topo__marca {
-  display: none;
-}
-.topo__marca {
-  align-items: center;
-  gap: var(--e-2);
-  color: var(--tinta);
-  text-decoration: none;
-}
-.topo__marca .marca-nome {
-  font-size: var(--t-l);
-}
-
-/* ------------------------------------------------ a folha */
+/* ------------------------------------------------ folha */
 
 .folha {
-  flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  margin: 0 8px 8px 0;
-  border: 1px solid var(--pauta);
-  /* a linha de margem do caderno: a assinatura do Pauta */
-  border-left: 1.5px solid color-mix(in srgb, var(--margem) 60%, var(--folha));
-  border-radius: var(--r-l);
+  min-height: calc(100dvh - 16px);
+  margin: 8px 8px 8px 0;
+  border: 1px solid var(--linha);
+  border-radius: var(--r-folha);
   background: var(--folha);
 }
-
-.faixa-demo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: var(--e-1) var(--e-3);
-  padding: var(--e-2) var(--e-4);
-  border-radius: var(--r-l) var(--r-l) 0 0;
-  background: var(--ambar-suave);
-  color: var(--ambar-texto);
-  font-size: var(--t-s);
-  font-weight: 550;
-  text-align: center;
+.faixa {
+  padding: var(--e-3) var(--e-8) 0;
 }
-.faixa-demo .botao-texto {
-  color: inherit;
-  text-decoration: underline;
+.faixa:empty {
+  display: none;
 }
-
+.faixa .aviso {
+  max-width: var(--coluna);
+  margin: 0 auto;
+}
 .conteudo {
   flex: 1;
-  width: 100%;
-  padding: var(--e-6);
   outline: none;
-  view-transition-name: conteudo;
+}
+.tela {
+  width: 100%;
+  max-width: calc(var(--coluna) + 2 * var(--e-8));
+  margin: 0 auto;
+  padding: var(--e-12) var(--e-8) var(--e-16);
 }
 
-body.sincronizando .tela-raiz {
-  opacity: 0.72;
-  transition: opacity var(--medio);
+/* barra do topo e abas: só no celular e no tablet */
+.topo,
+.abas {
+  display: none;
 }
 
-/* transição entre páginas (View Transitions API, quando o navegador suporta) */
-::view-transition-old(conteudo) {
-  animation: 120ms var(--curva) both sumir;
-}
-::view-transition-new(conteudo) {
-  animation: 200ms var(--curva) both surgir;
-}
+/* ------------------------------------------------ celular e tablet */
 
-@keyframes sumir {
-  to {
-    opacity: 0;
-  }
-}
-@keyframes surgir {
-  from {
-    opacity: 0;
-  }
-}
-@keyframes pulsar {
-  50% {
-    opacity: 0.35;
-  }
-}
-
-/* ------------------------------------------------ tablet e celular: a moldura some, a folha vira a tela */
-
-@media (max-width: 960px) {
+@media (max-width: 1023px) {
   .app {
-    grid-template-columns: minmax(0, 1fr);
+    display: block;
   }
   .lateral {
-    position: fixed;
-    inset: 0 auto 0 0;
-    width: min(300px, 86vw);
-    border-right: 1px solid var(--pauta);
-    box-shadow: var(--sombra-flutua); /* taste-skill-ignore: elemento flutuante */
-    transform: translateX(-104%);
-    transition: transform var(--medio) var(--curva);
-    visibility: hidden;
-  }
-  .lateral-aberta .lateral {
-    transform: none;
-    visibility: visible;
-  }
-  .lateral-aberta .lateral-fundo {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 25;
-    background: rgb(10 12 30 / 0.4);
+    display: none;
   }
   .topo {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    padding: 0 var(--e-2);
-    border-bottom: 1px solid var(--pauta);
-  }
-  .topo__menu {
-    display: inline-grid;
-  }
-  .topo__marca {
+    position: sticky;
+    top: 0;
+    z-index: 30;
     display: flex;
+    align-items: center;
+    gap: var(--e-2);
+    height: calc(52px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) var(--e-2) 0 var(--e-4);
+    background: var(--folha);
   }
-  .topo .busca-rapida {
-    justify-self: end;
+  .topo.rolou {
+    box-shadow: 0 1px 0 var(--linha); /* taste-skill-ignore: barra fixa, a linha aparece só quando a página rola */
+  }
+  .topo__fim {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+  }
+  .topo .foco-pilula {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: var(--r-pilula);
+  }
+  .topo .foco-pilula__titulo {
+    display: none;
   }
   .folha {
+    min-height: 100dvh;
     margin: 0;
     border: 0;
     border-radius: 0;
   }
-  .faixa-demo {
-    border-radius: 0;
+  .faixa {
+    padding: var(--e-2) var(--e-4) 0;
   }
-  .conteudo {
-    padding: var(--e-5) var(--e-4) var(--e-6);
+  .tela {
+    padding: var(--e-4) var(--e-4) calc(104px + env(safe-area-inset-bottom));
+  }
+  .abas {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 6px var(--e-2) calc(6px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--linha);
+    background: var(--folha);
+  }
+  .aba {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 3px;
+    min-height: 52px;
+    border-radius: 12px;
+    color: var(--tinta-3);
+    font-size: var(--t-meta);
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .aba.ativo {
+    color: var(--tinta);
+  }
+  .aba.ativo .aba__icone {
+    background: var(--painel-2);
+  }
+  .aba__icone {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 28px;
+    border-radius: var(--r-pilula);
+    transition: background-color var(--rapido);
+  }
+  .aba__icone .conta {
+    position: absolute;
+    margin: -14px 0 0 26px;
+    min-width: 18px;
+    height: 18px;
+    font-size: 11px;
+  }
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  .tela {
+    padding-inline: var(--e-6);
   }
 }

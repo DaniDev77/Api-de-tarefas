@@ -1,10 +1,11 @@
 // Espelho dos enums da API (projeto/Enums). Os números precisam ser idênticos aos do C#.
+// Os rótulos são os da rotina: a API continua com AFazer/EmAndamento/Concluida/Cancelada.
 
 export const STATUS = Object.freeze({
   A_FAZER: 1,
-  EM_ANDAMENTO: 2,
+  EM_ANDAMENTO: 2, // usado pelo Foco enquanto o cronômetro roda
   CONCLUIDA: 3,
-  CANCELADA: 4,
+  CANCELADA: 4, // "pulei hoje": não conta como falha nem como feito
 });
 
 export const PRIORIDADE = Object.freeze({
@@ -15,10 +16,10 @@ export const PRIORIDADE = Object.freeze({
 });
 
 export const STATUS_INFO = {
-  1: { valor: 1, rotulo: 'A fazer', curto: 'A fazer' },
-  2: { valor: 2, rotulo: 'Em andamento', curto: 'Andamento' },
-  3: { valor: 3, rotulo: 'Concluída', curto: 'Concluída' },
-  4: { valor: 4, rotulo: 'Cancelada', curto: 'Cancelada' },
+  1: { valor: 1, rotulo: 'A fazer' },
+  2: { valor: 2, rotulo: 'Fazendo agora' },
+  3: { valor: 3, rotulo: 'Feito' },
+  4: { valor: 4, rotulo: 'Pulado' },
 };
 
 export const PRIORIDADE_INFO = {
@@ -28,18 +29,14 @@ export const PRIORIDADE_INFO = {
   4: { valor: 4, rotulo: 'Urgente' },
 };
 
-export const LISTA_STATUS = [1, 2, 3, 4].map((v) => STATUS_INFO[v]);
-export const LISTA_PRIORIDADE = [4, 3, 2, 1].map((v) => PRIORIDADE_INFO[v]);
-
-/** Tarefa "aberta" = ainda exige ação. */
+/** Item "aberto" = ainda espera ação. */
 export const estaAberta = (t) => t.status === STATUS.A_FAZER || t.status === STATUS.EM_ANDAMENTO;
+export const estaFeita = (t) => t.status === STATUS.CONCLUIDA;
+export const foiPulada = (t) => t.status === STATUS.CANCELADA;
 
 /**
- * Paleta categórica (8 cores validadas para daltonismo, nos temas claro e escuro).
- * A cor segue a categoria pelo ID: nunca muda quando um filtro esconde outras categorias.
+ * Cada área (Categoria da API) tem um tom estável, escolhido pelo ID.
+ * É identidade, como a cor de uma pessoa: aparece no ponto da área e na marca de "feito".
  */
-export const TOTAL_CORES_CATEGORIA = 8;
-export const corCategoria = (categoria) => `var(--cat-${((Number(categoria?.id) || 1) - 1) % TOTAL_CORES_CATEGORIA})`;
-
-/** Cor estável do avatar a partir do ID. */
-export const tomAvatar = (usuario) => ((Number(usuario?.id) || 0) * 7) % 6;
+export const TOTAL_TONS = 8;
+export const tomArea = (categoriaId) => ((Number(categoriaId) || 1) - 1) % TOTAL_TONS;

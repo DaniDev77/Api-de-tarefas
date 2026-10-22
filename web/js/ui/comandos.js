@@ -1,33 +1,43 @@
-// Paleta de comandos (Ctrl+K): busca tarefas, pessoas e categorias e executa ações sem tirar a mão do teclado.
-import { html, raw, render } from '../core/html.js';
+// Paleta de comandos (Ctrl+K): busca hábitos e itens de hoje e executa ações sem tirar a mão do teclado.
+import { html, render } from '../core/html.js';
 import { normalizar } from '../core/format.js';
 import { navegar } from '../core/router.js';
-import { STATUS_INFO } from '../domain/enums.js';
-import { porId } from '../domain/selectors.js';
-import { icone, iconeStatus } from './icons.js';
-import { avatar } from './pecas.js';
-import { store, carregarTudo, definirTema } from '../state.js';
-import { abrirFormTarefa } from '../forms/tarefa-form.js';
-import { abrirFormPessoa } from '../forms/pessoa-form.js';
-import { abrirFormCategoria } from '../forms/categoria-form.js';
+import { estaAberta, STATUS } from '../domain/enums.js';
+import * as R from '../domain/rotina.js';
+import { icone } from './icons.js';
+import { ponto } from './pecas.js';
+import { store, carregarTudo, definirTema, perfilAtual, mudarStatus } from '../state.js';
+import { abrirFormHabito } from '../forms/habito-form.js';
+import { abrirFormArea } from '../forms/area-form.js';
+import { abrirFormPerfil } from '../forms/perfil-form.js';
+import { abrirDetalhesItem } from '../forms/item-form.js';
 
 let aberta = null;
+
+function focarAdicao() {
+  const focar = () => document.querySelector('[data-adicao] input')?.focus();
+  if (location.hash.startsWith('#/hoje') || location.hash === '' || location.hash === '#/') focar();
+  else {
+    navegar('hoje');
+    requestAnimationFrame(focar);
+  }
+}
 
 function acoesFixas() {
   const tema = store.get().tema;
   const proximoTema = tema === 'escuro' ? 'claro' : 'escuro';
   return [
-    { grupo: 'Ações', rotulo: 'Nova tarefa', icone: 'plus', atalho: 'N', fn: () => abrirFormTarefa() },
-    { grupo: 'Ações', rotulo: 'Nova pessoa', icone: 'user-plus', fn: () => abrirFormPessoa() },
-    { grupo: 'Ações', rotulo: 'Nova categoria', icone: 'folder-plus', fn: () => abrirFormCategoria() },
+    { grupo: 'Ações', rotulo: 'Escrever um item novo', icone: 'plus', atalho: 'N', fn: focarAdicao },
+    { grupo: 'Ações', rotulo: 'Novo hábito', icone: 'repeat-2', fn: () => abrirFormHabito() },
+    { grupo: 'Ações', rotulo: 'Nova área', icone: 'plus', fn: () => abrirFormArea() },
+    { grupo: 'Ações', rotulo: 'Novo perfil', icone: 'user-plus', fn: () => abrirFormPerfil() },
     { grupo: 'Ações', rotulo: 'Sincronizar dados', icone: 'refresh-cw', fn: () => carregarTudo() },
     { grupo: 'Ações', rotulo: `Usar tema ${proximoTema}`, icone: proximoTema === 'escuro' ? 'moon' : 'sun', fn: () => definirTema(proximoTema) },
-    { grupo: 'Ir para', rotulo: 'Painel', icone: 'layout-dashboard', atalho: 'G P', fn: () => navegar('painel') },
-    { grupo: 'Ir para', rotulo: 'Quadro', icone: 'square-kanban', atalho: 'G Q', fn: () => navegar('quadro') },
-    { grupo: 'Ir para', rotulo: 'Lista', icone: 'list', atalho: 'G L', fn: () => navegar('lista') },
-    { grupo: 'Ir para', rotulo: 'Equipe', icone: 'users', atalho: 'G E', fn: () => navegar('equipe') },
-    { grupo: 'Ir para', rotulo: 'Categorias', icone: 'tag', atalho: 'G C', fn: () => navegar('categorias') },
-    { grupo: 'Ir para', rotulo: 'Configurações', icone: 'settings', fn: () => navegar('configuracoes') },
+    { grupo: 'Ir para', rotulo: 'Hoje', icone: 'calendar-check', atalho: 'G H', fn: () => navegar('hoje') },
+    { grupo: 'Ir para', rotulo: 'Progresso', icone: 'chart-column', atalho: 'G P', fn: () => navegar('progresso') },
+    { grupo: 'Ir para', rotulo: 'Rotina', icone: 'repeat-2', atalho: 'G R', fn: () => navegar('rotina') },
+    { grupo: 'Ir para', rotulo: 'Foco', icone: 'timer', atalho: 'G F', fn: () => navegar('foco') },
+    { grupo: 'Ir para', rotulo: 'Ajustes', icone: 'settings', fn: () => navegar('ajustes') },
   ];
 }
 
@@ -41,42 +51,45 @@ function pontuar(texto, termo) {
 
 function resultados(termoBruto) {
   const termo = normalizar(termoBruto);
-  const { tarefas, usuarios, categorias } = store.get();
-  const pessoasPorId = porId(usuarios);
+  const s = store.get();
+  const perfil = perfilAtual(s);
   const itens = [];
-
   acoesFixas().forEach((a) => {
     const p = pontuar(a.rotulo, termo);
     if (p) itens.push({ ...a, p });
   });
-  if (termo) {
-    tarefas
-      .map((t) => ({ t, p: pontuar(`${t.titulo} ${t.descricao}`, termo) }))
-      .filter((x) => x.p)
-      .sort((a, b) => b.p - a.p)
-      .slice(0, 8)
-      .forEach(({ t, p }) =>
-        itens.push({
-          grupo: 'Tarefas',
-          rotulo: t.titulo,
-          iconeHtml: raw(iconeStatus(t.status, 16)),
-          detalhe: `${STATUS_INFO[t.status].rotulo}, com ${pessoasPorId.get(t.usuarioId)?.nome ?? 'ninguém'}`,
-          p: p + 1,
-          fn: () => abrirFormTarefa({ tarefa: store.get().tarefas.find((x) => x.id === t.id) }),
-        })
-      );
-    usuarios.forEach((u) => {
-      const p = pontuar(`${u.nome} ${u.email}`, termo);
-      if (p)
-        itens.push({ grupo: 'Equipe', rotulo: u.nome, iconeHtml: avatar(u, { tamanho: 'p', dica: false }), detalhe: 'Ver tarefas no quadro', p, fn: () => navegar('quadro', { pessoa: u.id }) });
-    });
-    categorias.forEach((c) => {
-      const p = pontuar(c.nome, termo);
-      if (p) itens.push({ grupo: 'Categorias', rotulo: c.nome, icone: 'tag', detalhe: 'Ver tarefas no quadro', p, fn: () => navegar('quadro', { categoria: c.id }) });
-    });
+  if (termo && perfil) {
+    const indice = R.indiceRotina(s.tarefas, perfil.id);
+    // itens de hoje: marcar direto daqui
+    R.itensDoDia(indice, new Date())
+      .filter((t) => estaAberta(t))
+      .forEach((t) => {
+        const p = pontuar(t.titulo, termo);
+        if (p)
+          itens.push({
+            grupo: 'Marcar como feito hoje',
+            rotulo: t.titulo,
+            iconeHtml: ponto(t.categoriaId),
+            detalhe: R.horaTexto(t.dataLimite),
+            p: p + 1,
+            fn: () => mudarStatus(t.id, STATUS.CONCLUIDA).catch(() => {}),
+          });
+      });
+    [...indice.series.values()]
+      .filter((sr) => sr.recorrente)
+      .forEach((sr) => {
+        const p = pontuar(sr.titulo, termo);
+        if (p) itens.push({ grupo: 'Hábitos', rotulo: sr.titulo, iconeHtml: ponto(sr.categoriaId), detalhe: `${R.textoDias(sr.padrao.dias)} · ${R.textoHorarios(sr.padrao.horarios)}`, p, fn: () => abrirFormHabito({ serie: sr }) });
+      });
+    indice.itens
+      .filter((t) => !R.serieDe(indice, t)?.recorrente && t.dataLimite >= new Date())
+      .forEach((t) => {
+        const p = pontuar(t.titulo, termo);
+        if (p) itens.push({ grupo: 'Itens avulsos', rotulo: t.titulo, iconeHtml: ponto(t.categoriaId), detalhe: R.chaveDia(t.dataLimite) === R.chaveDia(new Date()) ? `hoje, ${R.horaTexto(t.dataLimite)}` : `${t.dataLimite.toLocaleDateString('pt-BR')} ${R.horaTexto(t.dataLimite)}`, p, fn: () => abrirDetalhesItem(t) });
+      });
   }
-  const ordemGrupos = termo ? ['Tarefas', 'Equipe', 'Categorias', 'Ações', 'Ir para'] : ['Ações', 'Ir para'];
-  return itens.sort((a, b) => ordemGrupos.indexOf(a.grupo) - ordemGrupos.indexOf(b.grupo) || b.p - a.p);
+  const ordemGrupos = termo ? ['Marcar como feito hoje', 'Hábitos', 'Itens avulsos', 'Ações', 'Ir para'] : ['Ações', 'Ir para'];
+  return itens.sort((a, b) => ordemGrupos.indexOf(a.grupo) - ordemGrupos.indexOf(b.grupo) || b.p - a.p).slice(0, 14);
 }
 
 export function abrirComandos() {
@@ -88,8 +101,8 @@ export function abrirComandos() {
     dialogo,
     html`<div class="paleta__caixa">
       <div class="paleta__busca">
-        ${raw(icone('search', { tamanho: 18 }))}
-        <input type="text" class="paleta__entrada" placeholder="Buscar tarefas, pessoas ou ações" aria-label="Buscar" role="combobox" aria-expanded="true" aria-controls="paleta-lista" aria-autocomplete="list" autocomplete="off" spellcheck="false">
+        ${icone('search', { tamanho: 18 })}
+        <input type="text" class="paleta__entrada" placeholder="Buscar hábitos, itens ou ações" aria-label="Buscar" role="combobox" aria-expanded="true" aria-controls="paleta-lista" aria-autocomplete="list" autocomplete="off" spellcheck="false">
         <kbd>Esc</kbd>
       </div>
       <ul class="paleta__lista" id="paleta-lista" role="listbox"></ul>
@@ -114,7 +127,7 @@ export function abrirComandos() {
             const cabecalho = it.grupo !== grupoAnterior ? html`<li class="paleta__grupo" role="presentation">${it.grupo}</li>` : '';
             grupoAnterior = it.grupo;
             return html`${cabecalho}<li id="opc-${i}" class="paleta__item${i === ativo ? ' ativo' : ''}" role="option" aria-selected="${i === ativo}" data-i="${i}">
-              <span class="paleta__icone">${it.iconeHtml ?? raw(icone(it.icone, { tamanho: 16 }))}</span>
+              <span class="paleta__icone">${it.iconeHtml ?? icone(it.icone, { tamanho: 16 })}</span>
               <span class="paleta__texto"><span>${it.rotulo}</span>${it.detalhe ? html`<small>${it.detalhe}</small>` : ''}</span>
               ${it.atalho ? html`<kbd>${it.atalho}</kbd>` : ''}
             </li>`;
