@@ -182,30 +182,45 @@ export default {
       }
     });
     raiz.addEventListener('click', async (e) => {
+      // descobre QUAL botão foi clicado antes de qualquer espera: durante o "await" a tela se
+      // redesenha e o mesmo botão pode virar outro (o "Mais 5 min" vira o "Terminei antes")
+      const botao = e.target.closest('[data-comecar], [data-pausar], [data-retomar], [data-mais-cinco], [data-concluir], [data-parar], [data-detalhes], [data-avisar]');
+      if (!botao) return;
+      const acao = Object.keys(botao.dataset).find((k) => ['comecar', 'pausar', 'retomar', 'maisCinco', 'concluir', 'parar', 'detalhes', 'avisar'].includes(k));
       const s = store.get();
       const t = tarefaAlvo(s);
       if (!t) return;
-      if (e.target.closest('[data-comecar]')) {
-        if (s.foco && s.foco.tarefaId !== t.id) await encerrarFoco({ concluir: false });
-        terminouAvisado = false;
-        await iniciarFoco(t.id, minutosEscolhidos ?? 25);
-      }
-      if (e.target.closest('[data-pausar]')) pausarFoco();
-      if (e.target.closest('[data-retomar]')) retomarFoco();
-      if (e.target.closest('[data-mais-cinco]')) {
-        terminouAvisado = false;
-        await iniciarFoco(t.id, 5);
-      }
-      if (e.target.closest('[data-concluir]')) {
-        if (s.foco?.tarefaId === t.id) await encerrarFoco({ concluir: true });
-        else await mudarStatus(t.id, STATUS.CONCLUIDA).catch(() => {});
-        navegar('hoje');
-      }
-      if (e.target.closest('[data-parar]')) await encerrarFoco({ concluir: false });
-      if (e.target.closest('[data-detalhes]')) abrirDetalhesItem(t);
-      if (e.target.closest('[data-avisar]')) {
-        await Notification.requestPermission().catch(() => {});
-        desenhar(store.get());
+      switch (acao) {
+        case 'comecar':
+          if (s.foco && s.foco.tarefaId !== t.id) await encerrarFoco({ concluir: false });
+          terminouAvisado = false;
+          await iniciarFoco(t.id, minutosEscolhidos ?? 25);
+          break;
+        case 'pausar':
+          pausarFoco();
+          break;
+        case 'retomar':
+          retomarFoco();
+          break;
+        case 'maisCinco':
+          terminouAvisado = false;
+          await iniciarFoco(t.id, 5);
+          break;
+        case 'concluir':
+          if (s.foco?.tarefaId === t.id) await encerrarFoco({ concluir: true });
+          else await mudarStatus(t.id, STATUS.CONCLUIDA).catch(() => {});
+          navegar('hoje');
+          break;
+        case 'parar':
+          await encerrarFoco({ concluir: false });
+          break;
+        case 'detalhes':
+          abrirDetalhesItem(t);
+          break;
+        case 'avisar':
+          await Notification.requestPermission().catch(() => {});
+          desenhar(store.get());
+          break;
       }
     });
     const aoVoltar = () => {
