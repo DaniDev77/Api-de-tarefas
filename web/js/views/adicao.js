@@ -1,15 +1,16 @@
 // Adição rápida: escreva como fala ("academia 18h seg qua sex") e o app separa o que é título,
 // horário, dias e área. Enquanto digita, a leitura aparece embaixo para conferir antes de salvar.
-// Com dias da semana vira um hábito (itens nas próximas semanas); sem, é um item do dia escolhido.
+// Com dias da semana vira um hábito; sem, é um item do dia escolhido.
+// Hábito com um horário: começa nele e termina pela duração do título ("Ler 20 min") ou em 30 min.
+// Hábito sem horário, ou com vários ("água 4x ao dia"): lembrete do dia todo, com aviso no intervalo.
 import { html, render } from '../core/html.js';
-import { inicioDoDia, dataCompleta, diaMes, diferencaDias, plural, capitalizar } from '../core/format.js';
+import { inicioDoDia, dataCompleta, diaMes, diferencaDias, capitalizar, somarDias } from '../core/format.js';
 import { ler } from '../core/storage.js';
 import { lerFrase } from '../domain/frase.js';
-import { datasDaSerie, textoDias, textoHorarios, minutosDeTexto, textoDeMinutos, chaveDia } from '../domain/rotina.js';
+import { textoDias, textoFaixa, minutosDeTexto, textoDeMinutos, chaveDia, fimSugerido, intervaloEntre } from '../domain/rotina.js';
 import { tomArea } from '../domain/enums.js';
 import { store, criarItem, criarHabito, garantirArea } from '../state.js';
 import { icone } from '../ui/icons.js';
-import { SEMANAS_PADRAO } from '../config.js';
 
 const EXEMPLOS = ['beber água 4x ao dia', 'acordar 6h30 dias úteis', 'academia 18h seg qua sex', 'dentista amanhã 14h'];
 
@@ -42,14 +43,20 @@ export function adicaoRapida({ dia }) {
     const horarios = p.horarios.length ? p.horarios : [horarioPadrao(diaBase, agora)];
     const ultima = ler('ultimaArea');
     const categoriaId = areaEscolhida ?? p.categoriaId ?? (s.categorias.some((c) => c.id === ultima) ? ultima : s.categorias[0]?.id ?? null);
-    let datas = null;
-    let semanas = null;
+    let habito = null;
     if (p.dias) {
-      semanas = p.semanas ?? SEMANAS_PADRAO;
-      const inicio = inicioDoDia(diaBase) < inicioDoDia(agora) ? agora : diaBase;
-      datas = datasDaSerie({ dias: p.dias, horarios, inicio, semanas, agora });
+      const dataInicio = inicioDoDia(diaBase) < inicioDoDia(agora) ? inicioDoDia(agora) : inicioDoDia(diaBase);
+      const umHorario = p.horarios.length === 1;
+      habito = {
+        dias: p.dias,
+        horaInicio: umHorario ? p.horarios[0] : null,
+        horaFim: umHorario ? fimSugerido(p.horarios[0], p.titulo) : null,
+        lembrarACadaMinutos: p.horarios.length > 1 ? intervaloEntre(p.horarios) : null,
+        dataInicio,
+        dataFim: p.semanas ? somarDias(dataInicio, p.semanas * 7 - 1) : null,
+      };
     }
-    return { ...p, diaBase, horarios, horarioSugerido: !p.horarios.length, categoriaId, datas, semanas };
+    return { ...p, diaBase, horarios, horarioSugerido: !p.horarios.length, categoriaId, habito };
   }
 
   function leitura(texto) {
@@ -60,11 +67,12 @@ export function adicaoRapida({ dia }) {
     const s = store.get();
     const p = interpretar(texto);
     const pedacos = [];
-    if (p.datas) {
-      pedacos.push(html`<span class="leitura__peca">${icone('repeat-2', { tamanho: 14 })}${textoDias(p.dias)}</span>`);
-      pedacos.push(html`<span class="leitura__peca">${icone('clock', { tamanho: 14 })}${textoHorarios(p.horarios)}${p.horarioSugerido ? ' (sugerido)' : ''}</span>`);
-      const fim = p.datas.at(-1);
-      pedacos.push(html`<span class="leitura__peca">${icone('calendar', { tamanho: 14 })}${p.datas.length ? `${plural(p.datas.length, 'item', 'itens')} até ${diaMes(fim)}` : 'nenhum dia no período'}</span>`);
+    if (p.habito) {
+      const h = p.habito;
+      pedacos.push(html`<span class="leitura__peca">${icone('repeat-2', { tamanho: 14 })}${textoDias(h.dias)}</span>`);
+      pedacos.push(html`<span class="leitura__peca">${icone(h.horaInicio ? 'clock' : 'bell', { tamanho: 14 })}${textoFaixa(h)}</span>`);
+      const desde = chaveDia(h.dataInicio) === chaveDia(new Date()) ? '' : `de ${diaMes(h.dataInicio)} `;
+      pedacos.push(html`<span class="leitura__peca">${icone('calendar', { tamanho: 14 })}${h.dataFim ? `${desde}até ${diaMes(h.dataFim)}` : `${desde}sem prazo`}</span>`);
     } else {
       pedacos.push(html`<span class="leitura__peca">${icone('calendar', { tamanho: 14 })}${quandoTexto(p.diaBase)}</span>`);
       pedacos.push(html`<span class="leitura__peca">${icone('clock', { tamanho: 14 })}${p.horarios.join(', ')}${p.horarioSugerido ? ' (sugerido)' : ''}</span>`);
@@ -107,8 +115,8 @@ export function adicaoRapida({ dia }) {
     try {
       let categoriaId = p.categoriaId;
       if (!categoriaId) categoriaId = (await garantirArea('Geral', 'Itens sem uma área específica.')).id;
-      if (p.datas) {
-        await criarHabito({ titulo: p.titulo, categoriaId, dias: p.dias, horarios: p.horarios, semanas: p.semanas, inicio: p.diaBase < new Date() ? new Date() : p.diaBase });
+      if (p.habito) {
+        await criarHabito({ titulo: p.titulo, categoriaId, ...p.habito });
       } else {
         for (const h of p.horarios) {
           const m = minutosDeTexto(h);

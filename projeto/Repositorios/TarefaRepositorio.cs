@@ -14,12 +14,23 @@ namespace projeto.Repositorios
             _dbContext = dbContext;
         }
 
-        public async Task<List<TarefaModel>> BuscarTodasTarefas()
+        // Filtros opcionais: só de um usuário e/ou só num período (pelo DataLimite).
+        // Sem filtro nenhum, devolve tudo, como antes.
+        public async Task<List<TarefaModel>> BuscarTodasTarefas(int? usuarioId = null, DateTime? de = null, DateTime? ate = null)
         {
-            return await _dbContext.Tarefas
+            IQueryable<TarefaModel> consulta = _dbContext.Tarefas
                 .Include(x => x.Usuario)
-                .Include(x => x.Categoria)
-                .ToListAsync();
+                .Include(x => x.Categoria);
+
+            if (usuarioId != null) consulta = consulta.Where(x => x.UsuarioId == usuarioId);
+            if (de != null) consulta = consulta.Where(x => x.DataLimite >= de.Value.Date);
+            if (ate != null)
+            {
+                DateTime depoisDoFim = ate.Value.Date.AddDays(1);
+                consulta = consulta.Where(x => x.DataLimite < depoisDoFim);
+            }
+
+            return await consulta.OrderBy(x => x.DataLimite).ToListAsync();
         }
 
         public async Task<TarefaModel?> BuscarPorId(int id)
@@ -44,11 +55,13 @@ namespace projeto.Repositorios
 
             tarefaPorId.Titulo = tarefa.Titulo;
             tarefaPorId.Descricao = tarefa.Descricao;
+            tarefaPorId.DataInicio = tarefa.DataInicio;
             tarefaPorId.DataLimite = tarefa.DataLimite;
             tarefaPorId.Status = tarefa.Status;
             tarefaPorId.Prioridade = tarefa.Prioridade;
             tarefaPorId.UsuarioId = tarefa.UsuarioId;
             tarefaPorId.CategoriaId = tarefa.CategoriaId;
+            tarefaPorId.HabitoId = tarefa.HabitoId;
 
             _dbContext.Tarefas.Update(tarefaPorId);
             await _dbContext.SaveChangesAsync();

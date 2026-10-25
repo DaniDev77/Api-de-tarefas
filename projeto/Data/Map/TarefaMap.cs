@@ -21,6 +21,9 @@ namespace projeto.Data.Map
             builder.Property(x => x.DataCriacao)
                 .IsRequired();
 
+            // Opcional: as tarefas avulsas só têm o prazo (DataLimite)
+            builder.Property(x => x.DataInicio);
+
             builder.Property(x => x.DataLimite)
                 .IsRequired();
 
@@ -40,6 +43,13 @@ namespace projeto.Data.Map
             builder.HasOne(x => x.Categoria)
                 .WithMany(x => x.Tarefas)
                 .HasForeignKey(x => x.CategoriaId);
+
+            // O relacionamento com Habito (HabitoId opcional) está no HabitoMap.
+
+            // Índices para as consultas mais comuns: tarefas de um usuário num período
+            // e "já existe a tarefa deste hábito neste dia?"
+            builder.HasIndex(x => new { x.UsuarioId, x.DataLimite });
+            builder.HasIndex(x => new { x.HabitoId, x.DataInicio });
         }
     }
 }

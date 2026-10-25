@@ -1,7 +1,7 @@
 // Detalhes de um item da pauta (uma Tarefa), num painel lateral: título, status, dia, horário, área e nota.
 // Mudanças aqui valem só para este dia; o hábito inteiro se muda na tela Rotina.
 import { html } from '../core/html.js';
-import { dataHora, diaMes } from '../core/format.js';
+import { dataHora } from '../core/format.js';
 import { STATUS } from '../domain/enums.js';
 import * as R from '../domain/rotina.js';
 import { store, perfilAtual, atualizarTarefa, excluirTarefa } from '../state.js';
@@ -47,9 +47,10 @@ export function ligarTituloEditavel(form) {
 export function abrirDetalhesItem(tarefa) {
   const s = store.get();
   const perfil = perfilAtual(s);
-  const indice = perfil ? R.indiceRotina(s.tarefas, perfil.id) : null;
+  const indice = perfil ? R.indiceRotina(s.tarefas, perfil.id, s.habitos) : null;
   const serie = indice ? R.serieDe(indice, tarefa) : null;
   const ordenadas = [...s.categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const lembrete = R.ehLembrete(tarefa);
   const statusLista = tarefa.status === STATUS.EM_ANDAMENTO ? [{ valor: STATUS.EM_ANDAMENTO, rotulo: 'Fazendo agora' }, ...STATUS_EDITAVEIS] : STATUS_EDITAVEIS;
 
   const conteudo = html`<form class="form-lateral" novalidate>
@@ -64,7 +65,7 @@ export function abrirDetalhesItem(tarefa) {
       </div>
 
       ${serie?.recorrente
-        ? html`<p class="nota-habito">${ponto(serie.categoriaId)}<span>Faz parte do hábito <strong>${serie.titulo}</strong>: ${R.textoDias(serie.padrao.dias).toLowerCase()}, ${R.textoHorarios(serie.padrao.horarios)}, até ${diaMes(serie.ultimo)}. As mudanças aqui valem só para este dia.</span>
+        ? html`<p class="nota-habito">${ponto(serie.categoriaId)}<span>Faz parte do hábito <strong>${serie.titulo}</strong>: ${R.textoPadrao(serie).toLowerCase()}, ${R.situacaoSerie(serie).texto}. As mudanças aqui valem só para este dia.</span>
             <button type="button" class="botao-texto" data-ir-habito>Editar o hábito</button></p>`
         : ''}
 
@@ -84,11 +85,13 @@ export function abrirDetalhesItem(tarefa) {
           rotulo: 'Dia',
           controle: html`<input id="f-dia" name="dia" type="date" class="entrada entrada--compacta" value="${R.chaveDia(tarefa.dataLimite)}" required>`,
         })}
-        ${prop({
-          nome: 'horario',
-          rotulo: 'Horário',
-          controle: html`<input id="f-horario" name="horario" type="time" class="entrada entrada--compacta" value="${R.horaTexto(tarefa.dataLimite)}" required>`,
-        })}
+        ${lembrete
+          ? prop({ nome: 'horario', rotulo: 'Horário', grupo: true, controle: html`<span class="prop__texto">Sem horário (vale o dia todo)</span>` })
+          : prop({
+              nome: 'horario',
+              rotulo: tarefa.fim ? 'Começa' : 'Horário',
+              controle: html`<input id="f-horario" name="horario" type="time" class="entrada entrada--compacta" value="${R.horaTexto(tarefa.dataLimite)}" required>`,
+            })}
         ${prop({
           nome: 'categoriaId',
           rotulo: 'Área',
@@ -109,7 +112,9 @@ export function abrirDetalhesItem(tarefa) {
     </div>
 
     <footer class="form-lateral__rodape">
-      <button type="button" class="botao botao--fantasma acoes-form__esquerda botao-texto--perigo" data-remover>${icone('trash-2', { tamanho: 16 })}Remover deste dia</button>
+      ${tarefa.habitoId
+        ? html`<span class="acoes-form__esquerda"></span>`
+        : html`<button type="button" class="botao botao--fantasma acoes-form__esquerda botao-texto--perigo" data-remover>${icone('trash-2', { tamanho: 16 })}Remover deste dia</button>`}
       <button type="button" class="botao botao--fantasma" data-fechar>Cancelar</button>
       <button type="submit" class="botao botao--primario">Salvar</button>
     </footer>
@@ -142,7 +147,7 @@ export function abrirDetalhesItem(tarefa) {
         const fd = new FormData(form);
         const titulo = String(fd.get('titulo') ?? '').trim();
         const dia = R.diaDaChave(String(fd.get('dia') ?? ''));
-        const minutos = R.minutosDeTexto(String(fd.get('horario') ?? ''));
+        const minutos = lembrete ? 0 : R.minutosDeTexto(String(fd.get('horario') ?? ''));
         const erros = {};
         if (!titulo) erros.titulo = 'Escreva o que fazer.';
         if (!dia) erros.dia = 'Escolha um dia.';

@@ -59,7 +59,7 @@ function resultados(termoBruto) {
     if (p) itens.push({ ...a, p });
   });
   if (termo && perfil) {
-    const indice = R.indiceRotina(s.tarefas, perfil.id);
+    const indice = R.indiceRotina(s.tarefas, perfil.id, s.habitos);
     // itens de hoje: marcar direto daqui
     R.itensDoDia(indice, new Date())
       .filter((t) => estaAberta(t))
@@ -79,7 +79,7 @@ function resultados(termoBruto) {
       .filter((sr) => sr.recorrente)
       .forEach((sr) => {
         const p = pontuar(sr.titulo, termo);
-        if (p) itens.push({ grupo: 'Hábitos', rotulo: sr.titulo, iconeHtml: ponto(sr.categoriaId), detalhe: `${R.textoDias(sr.padrao.dias)} · ${R.textoHorarios(sr.padrao.horarios)}`, p, fn: () => abrirFormHabito({ serie: sr }) });
+        if (p) itens.push({ grupo: 'Hábitos', rotulo: sr.titulo, iconeHtml: ponto(sr.categoriaId), detalhe: R.textoPadrao(sr), p, fn: () => abrirFormHabito({ serie: sr }) });
       });
     indice.itens
       .filter((t) => !R.serieDe(indice, t)?.recorrente && t.dataLimite >= new Date())

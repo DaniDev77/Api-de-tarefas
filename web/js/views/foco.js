@@ -61,9 +61,9 @@ export default {
       if (id) return s.tarefas.find((t) => t.id === id) ?? null;
       const perfil = perfilAtual(s);
       if (!perfil) return null;
-      const doDia = R.itensDoDia(R.indiceRotina(s.tarefas, perfil.id), new Date());
+      const doDia = R.itensDoDia(R.indiceRotina(s.tarefas, perfil.id, s.habitos), new Date());
       const r = R.resumoDia(doDia);
-      return r.andamento ?? r.proximo ?? r.atrasados[0] ?? null;
+      return r.andamento ?? r.naHora ?? r.proximo ?? r.atrasados[0] ?? r.lembretes[0] ?? null;
     };
 
     const desenhar = (s) => {
@@ -71,14 +71,14 @@ export default {
       const t = tarefaAlvo(s);
       if (!perfil || !t) {
         // sem item escolhido: os itens em aberto de hoje
-        const indice = perfil ? R.indiceRotina(s.tarefas, perfil.id) : null;
+        const indice = perfil ? R.indiceRotina(s.tarefas, perfil.id, s.habitos) : null;
         const abertos = indice ? R.itensDoDia(indice, new Date()).filter(estaAberta) : [];
         morph(
           raiz,
           html`<div class="tela tela--foco" data-key="foco-escolha">
             ${tituloTela({ titulo: 'Foco', sub: abertos.length ? 'Escolha um item de hoje para focar.' : 'Nada em aberto hoje. Quando houver, o foco começa pelo próximo item da pauta.' })}
             <ul class="lista-curta foco__escolha">
-              ${abertos.map((x) => html`<li data-key="e${x.id}"><a class="lista-curta__linha" href="#/foco?tarefa=${x.id}">${ponto(x.categoriaId)}<span class="lista-curta__nome">${x.titulo}</span><span class="lista-curta__valor">${R.horaTexto(x.dataLimite)}</span></a></li>`)}
+              ${abertos.map((x) => html`<li data-key="e${x.id}"><a class="lista-curta__linha" href="#/foco?tarefa=${x.id}">${ponto(x.categoriaId)}<span class="lista-curta__nome">${x.titulo}</span><span class="lista-curta__valor">${R.ehLembrete(x) ? 'dia todo' : R.horaTexto(x.dataLimite)}</span></a></li>`)}
             </ul>
           </div>`
         );
@@ -86,7 +86,8 @@ export default {
       }
       const f = s.foco?.tarefaId === t.id ? s.foco : null;
       const outroFoco = s.foco && s.foco.tarefaId !== t.id ? s.tarefas.find((x) => x.id === s.foco.tarefaId) : null;
-      const doTitulo = R.duracaoDoTitulo(t.titulo);
+      // a duração vem do título ("Ler 20 min") ou do início e fim do hábito
+      const doTitulo = R.duracaoDoTitulo(t.titulo) ?? (t.fim && !R.ehLembrete(t) ? Math.min(240, Math.max(5, Math.round((t.fim - t.dataLimite) / 60000))) : null);
       const opcoes = [...new Set([...(doTitulo ? [doTitulo] : []), ...PADROES])].sort((a, b) => a - b);
       minutosEscolhidos ??= doTitulo ?? 25;
       const restante = f ? restanteFoco(f) : minutosEscolhidos * 60_000;
@@ -105,7 +106,7 @@ export default {
       }[fase];
 
       // ao lado: a nota do item e o que vem depois dele hoje
-      const indice = R.indiceRotina(s.tarefas, perfil.id);
+      const indice = R.indiceRotina(s.tarefas, perfil.id, s.habitos);
       const depois = R.itensDoDia(indice, new Date()).filter((x) => estaAberta(x) && x.id !== t.id && x.dataLimite >= t.dataLimite).slice(0, 4);
       const lado = html`<aside class="foco__lado" aria-label="Sobre este item">
         <section class="painel" aria-labelledby="foco-nota">
@@ -115,7 +116,7 @@ export default {
         <section class="painel" aria-labelledby="foco-depois">
           <div class="painel__topo"><h2 id="foco-depois" class="painel__titulo">Depois deste, hoje</h2><span class="conta">${depois.length}</span></div>
           ${depois.length
-            ? html`<ul class="lista-curta">${depois.map((x) => html`<li data-key="d${x.id}"><a class="lista-curta__linha" href="#/foco?tarefa=${x.id}">${ponto(x.categoriaId)}<span class="lista-curta__nome">${x.titulo}</span><span class="lista-curta__valor">${R.horaTexto(x.dataLimite)}</span></a></li>`)}</ul>`
+            ? html`<ul class="lista-curta">${depois.map((x) => html`<li data-key="d${x.id}"><a class="lista-curta__linha" href="#/foco?tarefa=${x.id}">${ponto(x.categoriaId)}<span class="lista-curta__nome">${x.titulo}</span><span class="lista-curta__valor">${R.ehLembrete(x) ? 'dia todo' : R.horaTexto(x.dataLimite)}</span></a></li>`)}</ul>`
             : html`<p class="painel__vazio">Nada mais em aberto hoje depois deste.</p>`}
         </section>
       </aside>`;
@@ -126,7 +127,7 @@ export default {
           <a class="botao-texto foco__voltar" href="#/hoje">${icone('chevron-left', { tamanho: 16 })}Hoje</a>
           <div class="foco__grade">
           <div class="foco tom-${tomArea(t.categoriaId)} foco--${fase}">
-            <p class="foco__area"><span class="area-nome">${ponto(t.categoriaId)}${categoria?.nome ?? 'Sem área'}</span> · na pauta às ${R.horaTexto(t.dataLimite)}</p>
+            <p class="foco__area"><span class="area-nome">${ponto(t.categoriaId)}${categoria?.nome ?? 'Sem área'}</span> · ${R.ehLembrete(t) ? 'sem horário' : t.fim ? `das ${R.horaTexto(t.dataLimite)} às ${R.horaTexto(t.fim)}` : `na pauta às ${R.horaTexto(t.dataLimite)}`}</p>
             <h1 class="foco__titulo">${t.titulo}</h1>
             ${outroFoco ? html`<p class="aviso">Há outro foco em andamento: ${outroFoco.titulo}. Começar este encerra aquele.</p>` : ''}
             <div class="foco__relogio" role="timer" aria-label="Tempo restante">

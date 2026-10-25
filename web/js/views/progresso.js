@@ -174,7 +174,7 @@ export default {
         morph(raiz, html`<div class="tela" data-key="sem-perfil">${tituloTela({ titulo: 'Progresso', sub: 'Escolha quem está usando o app na tela Hoje.' })}</div>`);
         return;
       }
-      const indice = R.indiceRotina(s.tarefas, perfil.id);
+      const indice = R.indiceRotina(s.tarefas, perfil.id, s.habitos);
       const est = R.estatisticas(indice);
       morph(
         raiz,

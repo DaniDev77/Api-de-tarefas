@@ -4,10 +4,11 @@ import { iniciarRoteador, navegar, lerRota } from './core/router.js';
 import { hora } from './core/format.js';
 import { APP, SINCRONIZAR_APOS_MS } from './config.js';
 import { store, carregarTudo, definirTema, efetivarExclusoesPendentes, perfilAtual, restanteFoco } from './state.js';
-import { indiceRotina, diasAteAcabar } from './domain/rotina.js';
+import { indiceRotina, situacaoSerie } from './domain/rotina.js';
 import { icone, marca } from './ui/icons.js';
 import { inicial } from './ui/pecas.js';
 import { iniciarDicas } from './ui/tooltip.js';
+import { iniciarLembretes } from './ui/lembretes.js';
 import { abrirModal } from './ui/modal.js';
 import { fecharMenu } from './ui/menu.js';
 import { abrirComandos } from './ui/comandos.js';
@@ -48,10 +49,10 @@ function aplicarTema(tema) {
 function habitosAcabando(s) {
   const p = perfilAtual(s);
   if (!p || s.fase !== 'pronto') return 0;
-  const indice = indiceRotina(s.tarefas, p.id);
+  const indice = indiceRotina(s.tarefas, p.id, s.habitos);
   let n = 0;
   indice.series.forEach((serie) => {
-    if (serie.recorrente && diasAteAcabar(serie) >= 0 && diasAteAcabar(serie) <= 7) n++;
+    if (serie.recorrente && situacaoSerie(serie).tipo === 'acabando') n++;
   });
   return n;
 }
@@ -343,6 +344,7 @@ function iniciar() {
 
   registrarServiceWorker();
   carregarTudo();
+  iniciarLembretes();
 }
 
 iniciar();

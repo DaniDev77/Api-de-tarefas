@@ -1,10 +1,10 @@
 // Rotina: os hábitos, agrupados por área. Pergunta da tela: "o que está rodando, e até quando?"
-// Um hábito vive na pauta por algumas semanas; quando está para acabar, a tela pede para estender.
+// Um hábito pode não ter prazo ou ter uma data para acabar; quando está para acabar, a tela pede para estender.
 import { html, morph } from '../core/html.js';
 import { diaMes, plural, normalizar, diaSemanaCurto } from '../core/format.js';
 import { tomArea } from '../domain/enums.js';
 import * as R from '../domain/rotina.js';
-import { store, perfilAtual, estenderHabito, encerrarHabito } from '../state.js';
+import { store, perfilAtual, estenderHabito, encerrarHabito, tirarPrazo } from '../state.js';
 import { tituloTela, ponto, textoSequencia } from '../ui/pecas.js';
 import { icone } from '../ui/icons.js';
 import { abrirMenu } from '../ui/menu.js';
@@ -14,12 +14,7 @@ import { abrirFormHabito } from '../forms/habito-form.js';
 import { abrirFormArea, confirmarExclusaoArea } from '../forms/area-form.js';
 import { SEMANAS_PADRAO } from '../config.js';
 
-function situacao(serie, agora) {
-  const dias = R.diasAteAcabar(serie, agora);
-  if (dias < 0) return { tipo: 'encerrado', texto: `encerrado em ${diaMes(serie.ultimo)}` };
-  if (dias <= 7) return { tipo: 'acabando', texto: dias === 0 ? 'acaba hoje' : dias === 1 ? 'acaba amanhã' : `acaba ${diaSemanaCurto(serie.ultimo)}, ${diaMes(serie.ultimo)}` };
-  return { tipo: 'ativo', texto: `até ${diaMes(serie.ultimo)}` };
-}
+const situacao = (serie, agora) => R.situacaoSerie(serie, agora);
 
 function linhaHabito(serie, chaveHoje, agora, destacado) {
   const seq = R.sequencias(serie, chaveHoje);
@@ -27,7 +22,7 @@ function linhaHabito(serie, chaveHoje, agora, destacado) {
   return html`<li class="habito tom-${tomArea(serie.categoriaId)} habito--${sit.tipo}${destacado ? ' destaque' : ''}" data-key="${serie.chave}" data-chave="${serie.chave}">
     <button type="button" class="habito__corpo" data-editar="${serie.chave}">
       <span class="habito__nome">${serie.titulo}</span>
-      <span class="habito__quando">${R.textoDias(serie.padrao.dias)} · ${R.textoHorarios(serie.padrao.horarios)}</span>
+      <span class="habito__quando">${R.textoPadrao(serie)}</span>
     </button>
     <span class="habito__seq">${seq.atual ? textoSequencia(seq.atual, serie.unidade) : html`<span class="cinza">—</span>`}</span>
     <span class="habito__ate habito__ate--${sit.tipo}">${sit.texto}</span>
@@ -57,7 +52,7 @@ function ideias(indice) {
     <div class="painel__topo"><h2 id="ideias-t" class="painel__titulo">Ideias de hábitos</h2><span class="painel__fim">um clique preenche o formulário</span></div>
     ${lista.length
       ? html`<ul class="lista-curta">${lista.map(
-          ({ sg, i }) => html`<li data-key="i${i}"><button type="button" class="lista-curta__linha" data-sugestao="${i}"><span class="lista-curta__nome">${sg.titulo}</span><span class="lista-curta__valor">${R.textoDias(sg.dias)} · ${R.textoHorarios(sg.horarios)}</span>${icone('plus', { tamanho: 16 })}</button></li>`
+          ({ sg, i }) => html`<li data-key="i${i}"><button type="button" class="lista-curta__linha" data-sugestao="${i}"><span class="lista-curta__nome">${sg.titulo}</span><span class="lista-curta__valor">${R.textoPadrao(sg)}</span>${icone('plus', { tamanho: 16 })}</button></li>`
         )}</ul>`
       : html`<p class="painel__vazio">Você já tem todas as sugestões na rotina.</p>`}
   </section>`;
@@ -77,7 +72,7 @@ export default {
       }
       const agora = new Date();
       const chaveHoje = R.chaveDia(agora);
-      const indice = R.indiceRotina(s.tarefas, perfil.id);
+      const indice = R.indiceRotina(s.tarefas, perfil.id, s.habitos);
       const series = [...indice.series.values()].filter((sr) => sr.recorrente);
       const acabando = series.filter((sr) => situacao(sr, agora).tipo === 'acabando');
       const ativos = series.filter((sr) => situacao(sr, agora).tipo !== 'encerrado');
@@ -118,7 +113,7 @@ export default {
                   </span>
                 </div>
                 ${lista.length
-                  ? html`<div class="habitos-cab" aria-hidden="true"><span>Hábito</span><span>Sequência</span><span>Na pauta</span></div>
+                  ? html`<div class="habitos-cab" aria-hidden="true"><span>Hábito</span><span>Sequência</span><span>Prazo</span></div>
                       <ul class="habitos">${lista.map((sr) => linhaHabito(sr, chaveHoje, agora, destacar === sr.chave))}</ul>`
                   : html`<p class="painel__vazio">Nenhum hábito nesta área.</p>`}
               </section>`
@@ -144,7 +139,7 @@ export default {
     const serieDaChave = (chave) => {
       const s = store.get();
       const perfil = perfilAtual(s);
-      return perfil ? R.indiceRotina(s.tarefas, perfil.id).series.get(chave) : null;
+      return perfil ? R.indiceRotina(s.tarefas, perfil.id, s.habitos).series.get(chave) : null;
     };
 
     raiz.addEventListener('click', async (e) => {
@@ -154,7 +149,7 @@ export default {
       const naArea = e.target.closest('[data-novo-na-area]');
       if (naArea) {
         const area = s.categorias.find((c) => c.id === Number(naArea.dataset.novoNaArea));
-        return abrirFormHabito({ sugestao: { titulo: '', area: area?.nome, dias: R.DIAS_UTEIS, horarios: ['08:00'] } });
+        return abrirFormHabito({ sugestao: { titulo: '', area: area?.nome, dias: R.DIAS_UTEIS, horaInicio: '08:00', horaFim: '08:30' } });
       }
       const sug = e.target.closest('[data-sugestao]');
       if (sug) return abrirFormHabito({ sugestao: R.SUGESTOES[Number(sug.dataset.sugestao)] });
@@ -176,7 +171,7 @@ export default {
       if (e.target.closest('[data-estender-todos]')) {
         const perfil = perfilAtual(s);
         const agora = new Date();
-        const lista = [...R.indiceRotina(s.tarefas, perfil.id).series.values()].filter((sr) => sr.recorrente && situacao(sr, agora).tipo === 'acabando');
+        const lista = [...R.indiceRotina(s.tarefas, perfil.id, s.habitos).series.values()].filter((sr) => sr.recorrente && situacao(sr, agora).tipo === 'acabando');
         for (const serie of lista) await estenderHabito(serie, SEMANAS_PADRAO).catch(() => {});
         return;
       }
@@ -184,11 +179,18 @@ export default {
       if (mais) {
         const serie = serieDaChave(mais.dataset.maisHabito);
         if (!serie) return;
-        const abertos = R.proximosAbertos(serie).length;
+        const h = serie.habito;
+        const sit = situacao(serie, new Date());
+        const podeEncerrar = h ? h.ativo : R.proximosAbertos(serie).length > 0;
         abrirMenu(mais, [
           { rotulo: 'Editar hábito', icone: 'pencil', acao: () => abrirFormHabito({ serie }) },
-          { rotulo: `Estender ${SEMANAS_PADRAO} semanas`, icone: 'calendar-plus', acao: () => estenderHabito(serie, SEMANAS_PADRAO).catch(() => {}) },
-          ...(abertos
+          ...(sit.tipo === 'encerrado'
+            ? [{ rotulo: 'Retomar', icone: 'calendar-plus', acao: () => estenderHabito(serie, SEMANAS_PADRAO).catch(() => {}) }]
+            : !h || h.dataFim
+              ? [{ rotulo: `Estender ${SEMANAS_PADRAO} semanas`, icone: 'calendar-plus', acao: () => estenderHabito(serie, SEMANAS_PADRAO).catch(() => {}) }]
+              : []),
+          ...(h && h.ativo && h.dataFim ? [{ rotulo: 'Tirar o prazo', icone: 'repeat-2', acao: () => tirarPrazo(serie).catch(() => {}) }] : []),
+          ...(podeEncerrar
             ? [
                 { separador: true },
                 {
@@ -198,7 +200,7 @@ export default {
                   acao: async () => {
                     const ok = await confirmar({
                       titulo: `Encerrar ${serie.titulo}?`,
-                      mensagem: html`<p>Os <strong>${plural(abertos, 'próximo item', 'próximos itens')}</strong> saem da pauta. O que você já fez continua no Progresso.</p>`,
+                      mensagem: html`<p>Os próximos itens saem da pauta. O que você já fez continua no Progresso.</p>`,
                       confirmar: 'Encerrar hábito',
                       perigo: true,
                     });

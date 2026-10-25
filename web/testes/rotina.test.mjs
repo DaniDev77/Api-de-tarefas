@@ -55,4 +55,42 @@ ok('duração do título', R.duracaoDoTitulo('Ler 20 min') === 20 && R.duracaoDo
 const est = R.estatisticas(idx, { agora });
 ok('constância conta feitos e perdidos', est.geral.feitos === 6 && est.geral.perdidos === 1, JSON.stringify(est.geral));
 ok('mapa tem semanas completas', est.mapa.length === 17 * 7 && est.mapa.at(-1).data.getDay() === 0);
+
+// ------------------------------------------------ hábitos da API (HabitoController)
+const H = (id, extra) => ({ id, titulo: 'Academia', descricao: '', dias: [1, 3, 5], horaInicio: '18:30', horaFim: '19:30', lembrarACadaMinutos: null, dataInicio: new Date(2026, 9, 12), dataFim: null, ativo: true, usuarioId: 1, categoriaId: 2, ...extra });
+const hab = H(1);
+ok('ocorre seg/qua/sex dentro do prazo', R.ocorreEm(hab, new Date(2026, 9, 21)) && !R.ocorreEm(hab, new Date(2026, 9, 20)) && !R.ocorreEm(hab, new Date(2026, 9, 9)));
+ok('não ocorre depois do fim nem encerrado', !R.ocorreEm(H(1, { dataFim: new Date(2026, 9, 20) }), new Date(2026, 9, 21)) && !R.ocorreEm(H(1, { ativo: false }), new Date(2026, 9, 21)));
+let hr = R.horarioEm(hab, new Date(2026, 9, 21));
+ok('horário 18:30 às 19:30', R.horaTexto(hr.inicio) === '18:30' && R.horaTexto(hr.fim) === '19:30' && hr.fim.getDate() === 21);
+hr = R.horarioEm(H(2, { horaInicio: '23:00', horaFim: '07:00' }), new Date(2026, 9, 21));
+ok('atravessa a meia-noite', hr.fim.getDate() === 22 && R.horaTexto(hr.fim) === '07:00');
+const agua = H(3, { titulo: 'Beber água', categoriaId: 1, dias: R.TODOS_OS_DIAS, horaInicio: null, horaFim: null, lembrarACadaMinutos: 120 });
+hr = R.horarioEm(agua, new Date(2026, 9, 21));
+ok('lembrete vale o dia todo', R.horaTexto(hr.inicio) === '00:00' && R.horaTexto(hr.fim) === '23:59');
+ok('texto da faixa', R.textoFaixa(hab) === '18:30 às 19:30' && R.textoFaixa(agua) === 'sem horário, aviso a cada 2 h' && R.textoPadrao(hab) === 'Seg, qua e sex · 18:30 às 19:30');
+
+// tarefas geradas pela API: dataLimite = início, fim = término, habitoId
+const G = (id, h, d, status) => { const x = R.horarioEm(h, new Date(2026, 9, d)); return { id, titulo: h.titulo, categoriaId: h.categoriaId, usuarioId: 1, dataLimite: x.inicio, fim: x.fim, habitoId: h.id, status, prioridade: 2, descricao: '' }; };
+const antigas = [T(101, 'Academia', 2, 5, 18, 3), T(102, 'Academia', 2, 7, 18, 3)]; // histórico do modo antigo
+const geradas = [G(201, hab, 12, 3), G(202, hab, 14, 3), G(203, hab, 16, 1), G(204, hab, 19, 3), G(205, hab, 21, 1), G(301, agua, 21, 1)];
+const idx2 = R.indiceRotina([...antigas, ...geradas], 1, [hab, agua], agora);
+const sh = idx2.series.get('h1');
+ok('série do hábito junta o histórico antigo', sh && sh.itens.length === 7 && !idx2.series.has('1|academia|2'), sh?.itens.length);
+ok('previstos nos próximos dias, sem ir ao banco', (idx2.porDia.get('2026-10-23') ?? []).some((t) => t.previsto && t.habitoId === 1) && !(idx2.porDia.get('2026-10-22') ?? []).some((t) => t.habitoId === 1));
+ok('previsto não entra nos itens nem na sequência', !idx2.itens.some((t) => t.previsto) && R.sequencias(sh, '2026-10-21').atual === 1);
+ok('série do previsto', R.serieDe(idx2, idx2.porDia.get('2026-10-23').find((t) => t.previsto && t.habitoId === 1))?.chave === 'h1');
+ok('situação: sem prazo / acabando / encerrado', R.situacaoSerie(sh, agora).texto === 'sem prazo'
+  && R.situacaoSerie({ habito: H(1, { dataFim: new Date(2026, 9, 24) }) }, agora).tipo === 'acabando'
+  && R.situacaoSerie({ habito: H(1, { ativo: false }) }, agora).tipo === 'encerrado');
+const tAgua = geradas.at(-1);
+ok('lembrete nunca passa do horário no dia', R.ehLembrete(tAgua) && !R.passouDoHorario(tAgua, agora) && !R.ehLembrete(geradas[4]));
+const dia21 = R.itensDoDia(idx2, agora);
+let rd = R.resumoDia(dia21, agora);
+ok('resumo: lembrete separado, próximo é a academia', rd.lembretes.length === 1 && rd.proximo?.id === 205 && rd.atrasados.length === 0, JSON.stringify({ l: rd.lembretes.length, p: rd.proximo?.id }));
+rd = R.resumoDia(dia21, new Date(2026, 9, 21, 19, 0));
+ok('resumo: na hora entre início e fim', rd.naHora?.id === 205 && rd.atrasados.length === 0);
+rd = R.resumoDia(dia21, new Date(2026, 9, 21, 19, 45));
+ok('resumo: depois do fim, passou do horário', rd.atrasados.length === 1 && rd.atrasados[0].id === 205);
+ok('fim sugerido e intervalo', R.fimSugerido('22:30', 'Ler 20 min') === '22:50' && R.fimSugerido('18:00', 'Academia') === '18:30' && R.intervaloEntre(['09:00', '12:00', '15:00', '18:00']) === 180);
 console.log(falhas ? `\n${falhas} FALHA(S)` : '\nTudo certo');

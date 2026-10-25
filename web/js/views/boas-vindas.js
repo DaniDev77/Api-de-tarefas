@@ -1,15 +1,14 @@
 // Primeira vez: quem está usando (um Usuario da API) e por quais hábitos começar.
-// Os hábitos escolhidos viram tarefas nas próximas semanas; as áreas que faltarem são criadas.
+// Os hábitos escolhidos entram na rotina (cada dia na pauta quando chega); as áreas que faltarem são criadas.
 import { html, morph } from '../core/html.js';
 import { ler, gravar } from '../core/storage.js';
 import { normalizar, plural } from '../core/format.js';
-import { SUGESTOES, AREAS_SUGERIDAS, textoDias, textoHorarios, datasDaSerie } from '../domain/rotina.js';
+import { SUGESTOES, AREAS_SUGERIDAS, textoPadrao } from '../domain/rotina.js';
 import { tomArea } from '../domain/enums.js';
 import { store, perfis, definirPerfil, criarHabito, garantirArea } from '../state.js';
 import { inicial } from '../ui/pecas.js';
 import { icone } from '../ui/icons.js';
 import { mostrarErros, limparErros, emailValido, estadoEnviando } from '../forms/campos.js';
-import { SEMANAS_PADRAO } from '../config.js';
 
 const chaveZero = (s, perfil) => `comecarDoZero:${s.fonte}:${perfil.id}`;
 
@@ -24,7 +23,7 @@ let montando = false;
 export function precisaBoasVindas(s, perfil, indice) {
   if (!perfil) return true;
   if (montando) return true;
-  return indice.itens.length === 0 && !ler(chaveZero(s, perfil));
+  return indice.itens.length === 0 && indice.series.size === 0 && !ler(chaveZero(s, perfil));
 }
 let raizAtual = null;
 
@@ -73,12 +72,10 @@ function etapaPerfil(s) {
 
 function etapaHabitos(s, perfil) {
   const primeiro = perfil.nome.trim().split(/\s+/)[0];
-  const agora = new Date();
-  const total = [...escolhidas].reduce((n, i) => n + datasDaSerie({ ...SUGESTOES[i], inicio: agora, semanas: SEMANAS_PADRAO, agora }).length, 0);
   return html`<div class="tela tela--boas-vindas" data-key="bv-habitos">
     <header class="saudacao">
       <h1 class="saudacao__h1">Por onde começar, ${primeiro}?</h1>
-      <p class="saudacao__sub">Escolha alguns hábitos. Cada um entra na pauta das próximas ${SEMANAS_PADRAO} semanas, e depois dá para mudar horários e dias.</p>
+      <p class="saudacao__sub">Escolha alguns hábitos. Cada dia eles entram na pauta, e depois dá para mudar horários, dias e prazo.</p>
     </header>
     <fieldset class="bv__sugestoes" ${montando ? 'disabled' : ''}>
       <legend class="sr-only">Hábitos sugeridos</legend>
@@ -88,14 +85,14 @@ function etapaHabitos(s, perfil) {
           <span class="sugestao__caixa" aria-hidden="true">${icone('check', { tamanho: 14 })}</span>
           <span class="sugestao__texto">
             <span class="sugestao__titulo">${sg.titulo}</span>
-            <span class="sugestao__meta"><span class="ponto"></span>${sg.area} · ${textoDias(sg.dias)} · ${textoHorarios(sg.horarios)}</span>
+            <span class="sugestao__meta"><span class="ponto"></span>${sg.area} · ${textoPadrao(sg)}</span>
           </span>
         </label>`
       )}
     </fieldset>
     <div class="bv__acoes">
       <button type="button" class="botao botao--primario" data-montar ${escolhidas.size && !montando ? '' : 'disabled'} ${montando ? 'aria-busy="true"' : ''}>${montando ? 'Montando a pauta…' : 'Montar minha pauta'}</button>
-      <span class="bv__total">${escolhidas.size ? `${plural(escolhidas.size, 'hábito', 'hábitos')}, ${plural(total, 'item', 'itens')} nas próximas ${SEMANAS_PADRAO} semanas` : 'Nenhum hábito escolhido'}</span>
+      <span class="bv__total">${escolhidas.size ? `${plural(escolhidas.size, 'hábito escolhido', 'hábitos escolhidos')}` : 'Nenhum hábito escolhido'}</span>
       <button type="button" class="botao-texto bv__zero" data-do-zero ${montando ? 'disabled' : ''}>Começar com a pauta vazia</button>
     </div>
   </div>`;
@@ -108,7 +105,8 @@ async function montar(perfil) {
     for (const i of [...escolhidas].sort((a, b) => a - b)) {
       const sg = SUGESTOES[i];
       const area = await garantirArea(sg.area, AREAS_SUGERIDAS[sg.area] ?? '');
-      await criarHabito({ titulo: sg.titulo, categoriaId: area.id, dias: sg.dias, horarios: sg.horarios, semanas: SEMANAS_PADRAO });
+      const { titulo, dias, horaInicio, horaFim, lembrarACadaMinutos = null } = sg;
+      await criarHabito({ titulo, categoriaId: area.id, dias, horaInicio, horaFim, lembrarACadaMinutos });
     }
   } catch {
     /* a notificação de erro já apareceu */

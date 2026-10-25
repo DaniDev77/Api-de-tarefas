@@ -50,6 +50,12 @@ namespace projeto.Repositorios
             UsuarioModel usuarioPorId = await BuscarPorId(id)
                 ?? throw new Exception($"Usuario para o ID: {id} nao foi encontrado no banco de dados.");
 
+            // os hábitos do usuário são apagados junto (cascata); antes, as tarefas
+            // deixam de apontar para eles, senão o banco recusa a exclusão
+            await _dbContext.Tarefas
+                .Where(t => t.Habito != null && t.Habito.UsuarioId == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.HabitoId, (int?)null));
+
             _dbContext.Usuarios.Remove(usuarioPorId);
             await _dbContext.SaveChangesAsync();
             return true;

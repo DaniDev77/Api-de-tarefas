@@ -321,6 +321,18 @@
   font-size: var(--t-corpo);
   font-variant-numeric: tabular-nums;
 }
+.item__hora--livre {
+  display: inline-flex;
+  color: var(--tinta-3);
+}
+/* dia que ainda não chegou: a previsão do hábito, sem botão de marcar */
+.item--previsto .item__titulo {
+  color: var(--tinta-2);
+}
+.marcar--previsto .marcar__fundo {
+  fill: none;
+  stroke-dasharray: 3 4;
+}
 .item--atrasado .item__hora {
   color: var(--aviso);
   font-weight: 600;
@@ -950,6 +962,10 @@ a.lista-curta__linha:hover .lista-curta__nome {
   gap: 4px;
   min-width: 0;
 }
+.prop__texto {
+  color: var(--tinta-2);
+  font-size: var(--t-corpo);
+}
 .entrada--compacta {
   width: auto;
   max-width: 100%;
@@ -1001,18 +1017,36 @@ select.entrada--compacta {
 .campo--grupo > .botao-texto {
   font-size: 0.8125rem;
 }
-.horarios {
+/* horário do hábito: início e fim, ou sem horário (lembrete) */
+.form-habito__horas {
+  grid-template-columns: repeat(2, minmax(0, 160px));
+  margin-top: var(--e-3);
+}
+.form-habito__quando {
+  grid-template-columns: minmax(0, 180px) minmax(0, 1fr);
+}
+.form-habito__quando .segmentos {
+  flex-wrap: nowrap;
+}
+.form-habito__lembrete {
   display: grid;
-  gap: var(--e-2);
-  margin-bottom: var(--e-2);
+  gap: var(--e-3);
+  margin-top: var(--e-3);
 }
-.horarios__linha {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.form-habito__lembrete .campo {
+  max-width: 220px;
 }
-.horarios__linha .entrada {
-  width: 140px;
+.form-habito__horas[hidden],
+.form-habito__lembrete[hidden] {
+  display: none;
+}
+@media (max-width: 560px) {
+  .form-habito__horas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .form-habito__quando {
+    grid-template-columns: 1fr;
+  }
 }
 .previa {
   padding: var(--e-3) var(--e-4);

@@ -15,10 +15,12 @@ namespace projeto.Controllers
             _tarefaRepositorio = tarefaRepositorio;
         }
 
+        // GET api/Tarefa                                   -> todas
+        // GET api/Tarefa?usuarioId=1&de=2026-10-01&ate=2026-10-31 -> filtradas
         [HttpGet]
-        public async Task<ActionResult<List<TarefaModel>>> BuscarTodasTarefas()
+        public async Task<ActionResult<List<TarefaModel>>> BuscarTodasTarefas([FromQuery] int? usuarioId, [FromQuery] DateTime? de, [FromQuery] DateTime? ate)
         {
-            List<TarefaModel> tarefas = await _tarefaRepositorio.BuscarTodasTarefas();
+            List<TarefaModel> tarefas = await _tarefaRepositorio.BuscarTodasTarefas(usuarioId, de, ate);
             return Ok(tarefas);
         }
 
@@ -33,6 +35,11 @@ namespace projeto.Controllers
         [HttpPost]
         public async Task<ActionResult<TarefaModel>> Cadastrar([FromBody] TarefaModel tarefaModel)
         {
+            if (tarefaModel.DataInicio > tarefaModel.DataLimite)
+            {
+                ModelState.AddModelError(nameof(tarefaModel.DataLimite), "O fim vem antes do início.");
+                return ValidationProblem(ModelState);
+            }
             TarefaModel tarefa = await _tarefaRepositorio.Adicionar(tarefaModel);
             return Ok(tarefa);
         }
@@ -40,6 +47,11 @@ namespace projeto.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<TarefaModel>> Atualizar([FromBody] TarefaModel tarefaModel, int id)
         {
+            if (tarefaModel.DataInicio > tarefaModel.DataLimite)
+            {
+                ModelState.AddModelError(nameof(tarefaModel.DataLimite), "O fim vem antes do início.");
+                return ValidationProblem(ModelState);
+            }
             TarefaModel tarefa = await _tarefaRepositorio.Atualizar(tarefaModel, id);
             return Ok(tarefa);
         }

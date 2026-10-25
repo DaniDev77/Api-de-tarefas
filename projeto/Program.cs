@@ -46,6 +46,7 @@ builder.Services.AddDbContext<SistemaTarefasDbContext>(options =>
 builder.Services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
 builder.Services.AddScoped<ITarefaRepositorio, TarefaRepositorio>();
 builder.Services.AddScoped<ICategoriaRepositorio, CategoriaRepositorio>();
+builder.Services.AddScoped<IHabitoRepositorio, HabitoRepositorio>();
 
 var app = builder.Build();
 

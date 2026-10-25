@@ -2,7 +2,8 @@
 // - a saudação diz o fato do dia;
 // - a semana mostra, em anéis, quanto de cada dia foi feito (e troca o dia);
 // - o Ritmo do dia põe cada item no seu horário, com a linha do agora;
-// - a lista, por manhã, tarde e noite, é onde se marca (segurando o botão);
+// - a lista, por manhã, tarde e noite, é onde se marca (segurando o botão); os hábitos sem horário
+//   (lembretes) ficam numa seção própria no topo; dias futuros mostram os itens previstos dos hábitos;
 // - ao lado: o que fazer agora, os compromissos avulsos e as sequências.
 import { html, raw, morph } from '../core/html.js';
 import { navegar, montarHash } from '../core/router.js';
@@ -37,6 +38,7 @@ function cabecalho(perfil, dia, r, ehHoje, agora) {
     const partes = [quando];
     if (r.total) partes.push(`${r.feitos} de ${r.total} feitos`);
     if (r.andamento) partes.push(`fazendo agora: ${r.andamento.titulo}`);
+    else if (r.naHora) partes.push(`agora: ${r.naHora.titulo}, até ${hora(r.naHora.fim)}`);
     else if (r.proximo) partes.push(`próximo: ${r.proximo.titulo} às ${hora(r.proximo.dataLimite)}`);
     sub = partes.join(' · ');
   } else {
@@ -76,7 +78,8 @@ function semana(indice, dia, chaveHoje, agora) {
 }
 
 /** O Ritmo do dia: cada item no seu horário, numa régua de 6h a meia-noite, com a linha do agora. */
-function ritmo(itens, r, ehHoje, agora) {
+function ritmo(todos, r, ehHoje, agora) {
+  const itens = todos.filter((t) => !R.ehLembrete(t)); // lembrete não tem horário na régua
   const minutos = itens.map((t) => R.minutosDoDia(t.dataLimite));
   const ini = Math.min(360, Math.floor(Math.min(...minutos, 360) / 60) * 60);
   const fim = 1440;
@@ -111,7 +114,7 @@ function ritmo(itens, r, ehHoje, agora) {
       <div class="ritmo__trilho">
         ${marcas.map((m) => html`<span class="ritmo__hora" style="left:${pos(m)}%" data-key="h${m}">${m === 1440 ? '24h' : `${m / 60}h`}</span>`)}
         ${pontos.map(({ t, p, faixa }) => {
-          const estado = estaFeita(t) ? 'feito' : foiPulada(t) ? 'pulado' : ehHoje && t.dataLimite < agora ? 'atrasado' : 'aberto';
+          const estado = estaFeita(t) ? 'feito' : foiPulada(t) ? 'pulado' : ehHoje && R.passouDoHorario(t, agora) ? 'atrasado' : 'aberto';
           return html`<span class="ritmo__ponto tom-${tomArea(t.categoriaId)} ritmo__ponto--${estado}" style="left:${p}%;--faixa:${faixa}" data-ir="${t.id}" data-key="r${t.id}" data-dica="${R.horaTexto(t.dataLimite)} · ${t.titulo}"></span>`;
         })}
         ${mostrarAgora ? html`<span class="ritmo__agora" style="left:${pos(minAgora)}%" data-key="agora"><span class="ritmo__agora-rotulo">${hora(agora)}</span></span>` : ''}
@@ -124,16 +127,20 @@ function linhaItem(t, indice, ehHoje, agora, s) {
   const serie = R.serieDe(indice, t);
   const pos = R.posicaoNoDia(indice, t);
   const categoria = s.categorias.find((c) => c.id === t.categoriaId);
+  const lembrete = R.ehLembrete(t);
   const feito = estaFeita(t);
   const pulado = foiPulada(t);
   const andamento = t.status === STATUS.EM_ANDAMENTO;
-  const atrasado = estaAberta(t) && t.dataLimite < agora;
-  const estado = feito ? 'feito' : pulado ? 'pulado' : andamento ? 'andamento' : atrasado ? (ehHoje ? 'atrasado' : 'perdido') : 'aberto';
+  const atrasado = estaAberta(t) && R.passouDoHorario(t, agora);
+  const estado = t.previsto ? 'previsto' : feito ? 'feito' : pulado ? 'pulado' : andamento ? 'andamento' : atrasado ? (ehHoje ? 'atrasado' : 'perdido') : 'aberto';
 
   const meta = [];
   meta.push(html`<span class="area-nome">${ponto(t.categoriaId)}${categoria?.nome ?? 'Sem área'}</span>`);
   if (pos.de > 1) meta.push(html`<span>${pos.n} de ${pos.de}</span>`);
-  if (estado === 'andamento') meta.push(html`<span class="item__estado">fazendo agora</span>`);
+  if (t.fim && !lembrete) meta.push(html`<span>até ${R.horaTexto(t.fim)}</span>`);
+  if (lembrete && serie?.habito?.lembrarACadaMinutos) meta.push(html`<span>aviso a cada ${R.textoIntervalo(serie.habito.lembrarACadaMinutos)}</span>`);
+  if (estado === 'previsto') meta.push(html`<span class="item__estado">previsto</span>`);
+  else if (estado === 'andamento') meta.push(html`<span class="item__estado">fazendo agora</span>`);
   else if (estado === 'atrasado') meta.push(html`<span class="item__estado item__estado--aviso">passou do horário</span>`);
   else if (estado === 'perdido') meta.push(html`<span class="item__estado">não marcado</span>`);
   else if (estado === 'pulado') meta.push(html`<span class="item__estado">pulado</span>`);
@@ -141,13 +148,33 @@ function linhaItem(t, indice, ehHoje, agora, s) {
     const { atual } = R.sequencias(serie, R.chaveDia(agora));
     if (atual >= 2) meta.push(html`<span>${textoSequencia(atual, serie.unidade)}</span>`);
   }
+  const metaHtml = html`<span class="item__meta">${meta.map((m, i) => html`${i ? html`<span class="item__sep" aria-hidden="true">·</span>` : ''}${m}`)}</span>`;
+  const horaHtml = lembrete
+    ? html`<span class="item__hora item__hora--livre" aria-label="Sem horário">${icone('bell', { tamanho: 15 })}</span>`
+    : html`<span class="item__hora">${R.horaTexto(t.dataLimite)}</span>`;
 
-  const acao = feito ? `Desmarcar ${t.titulo}` : `Marcar ${t.titulo} das ${R.horaTexto(t.dataLimite)} como feito`;
-  return html`<li class="item tom-${tomArea(t.categoriaId)} item--${estado}" data-key="t${t.id}" data-id="${t.id}">
-    <span class="item__hora">${R.horaTexto(t.dataLimite)}</span>
+  // dia que ainda não chegou: o item é só a previsão do hábito (a API cria no dia); clicar abre o hábito
+  if (t.previsto) {
+    return html`<li class="item tom-${tomArea(t.categoriaId)} item--previsto" data-key="t${t.id}">
+      ${horaHtml}
+      <button type="button" class="item__corpo" data-abrir-habito="${serie?.chave ?? ''}" aria-label="${t.titulo}: previsto. Abrir o hábito">
+        <span class="item__titulo">${t.titulo}</span>
+        ${metaHtml}
+      </button>
+      <span aria-hidden="true"></span>
+      <span class="marcar marcar--previsto" aria-hidden="true">
+        <svg class="marcar__svg" viewBox="0 0 40 40"><circle class="marcar__fundo" cx="20" cy="20" r="17"/></svg>
+      </span>
+    </li>`;
+  }
+
+  const quando = lembrete ? 'de hoje' : `das ${R.horaTexto(t.dataLimite)}`;
+  const acao = feito ? `Desmarcar ${t.titulo}` : `Marcar ${t.titulo} ${quando} como feito`;
+  return html`<li class="item tom-${tomArea(t.categoriaId)} item--${estado}${lembrete ? ' item--lembrete' : ''}" data-key="t${t.id}" data-id="${t.id}">
+    ${horaHtml}
     <button type="button" class="item__corpo" data-abrir="${t.id}">
       <span class="item__titulo">${t.titulo}</span>
-      <span class="item__meta">${meta.map((m, i) => html`${i ? html`<span class="item__sep" aria-hidden="true">·</span>` : ''}${m}`)}</span>
+      ${metaHtml}
     </button>
     <button type="button" class="botao-icone item__mais" data-mais="${t.id}" aria-label="Mais ações: ${t.titulo}" aria-haspopup="menu" aria-expanded="false">${icone('ellipsis', { tamanho: 18 })}</button>
     <button type="button" class="marcar" data-marcar="${t.id}" aria-pressed="${feito}" aria-label="${acao}">
@@ -160,8 +187,16 @@ function linhaItem(t, indice, ehHoje, agora, s) {
   </li>`;
 }
 
+// os hábitos sem horário vêm primeiro: valem o dia todo
+const SEM_HORARIO = { id: 'livre', rotulo: 'Sem horário' };
+
 function pauta(itens, indice, ehHoje, agora, s, dia) {
-  const grupos = R.PERIODOS.map((p) => ({ ...p, itens: itens.filter((t) => R.periodoDe(t.dataLimite).id === p.id) })).filter((g) => g.itens.length);
+  const lembretes = itens.filter(R.ehLembrete);
+  const comHorario = itens.filter((t) => !R.ehLembrete(t));
+  const grupos = [
+    { ...SEM_HORARIO, itens: lembretes },
+    ...R.PERIODOS.map((p) => ({ ...p, itens: comHorario.filter((t) => R.periodoDe(t.dataLimite).id === p.id) })),
+  ].filter((g) => g.itens.length);
   return html`<section class="pauta" aria-labelledby="pauta-t" data-key="pauta">
     <h2 id="pauta-t" class="sr-only">Pauta de ${dataCompleta(dia)}</h2>
     ${grupos.length
@@ -205,6 +240,15 @@ function painelAgora(r, itens, ehHoje, agora, s, dia) {
         <a class="botao botao--primario botao--p" href="#/foco?tarefa=${t.id}">${icone('timer', { tamanho: 16 })}${comFoco ? 'Abrir o foco' : 'Começar foco'}</a>
         <button type="button" class="botao botao--secundario botao--p" data-feito="${t.id}">Marcar como feito</button>
       </div>`;
+  } else if (r.naHora) {
+    const t = r.naHora;
+    corpo = html`<p class="agora__rotulo">Na hora</p>
+      <p class="agora__titulo">${t.titulo}</p>
+      <p class="agora__meta">${R.horaTexto(t.dataLimite)} às ${R.horaTexto(t.fim)} · termina em ${R.textoIntervalo(Math.max(1, Math.round((t.fim - agora) / 60000)))}</p>
+      <div class="agora__acoes">
+        <a class="botao botao--primario botao--p" href="#/foco?tarefa=${t.id}">${icone('timer', { tamanho: 16 })}Começar foco</a>
+        <button type="button" class="botao botao--secundario botao--p" data-feito="${t.id}">Já fiz</button>
+      </div>`;
   } else if (r.atrasados.length) {
     const t = r.atrasados[0];
     corpo = html`<p class="agora__rotulo">Ficou para trás</p>
@@ -225,6 +269,14 @@ function painelAgora(r, itens, ehHoje, agora, s, dia) {
       <div class="agora__acoes">
         <a class="botao botao--primario botao--p" href="#/foco?tarefa=${t.id}">${icone('timer', { tamanho: 16 })}Começar foco</a>
         <button type="button" class="botao botao--secundario botao--p" data-feito="${t.id}">Já fiz</button>
+      </div>`;
+  } else if (r.lembretes.length) {
+    const t = r.lembretes[0];
+    corpo = html`<p class="agora__rotulo">Ao longo do dia</p>
+      <p class="agora__titulo">${t.titulo}</p>
+      <p class="agora__meta">Sem horário${r.lembretes.length > 1 ? ` · e mais ${r.lembretes.length - 1}` : ''}</p>
+      <div class="agora__acoes">
+        <button type="button" class="botao botao--primario botao--p" data-feito="${t.id}">${icone('check', { tamanho: 16 })}Fiz</button>
       </div>`;
   } else if (r.total) {
     corpo = html`<p class="agora__titulo">Dia completo.</p><p class="agora__meta">${r.feitos} de ${r.total} feitos. Amanhã a pauta continua.</p>`;
@@ -292,7 +344,7 @@ export default {
 
     const desenhar = (s) => {
       const perfil = perfilAtual(s);
-      const indice = perfil ? R.indiceRotina(s.tarefas, perfil.id) : null;
+      const indice = perfil ? R.indiceRotina(s.tarefas, perfil.id, s.habitos) : null;
       if (precisaBoasVindas(s, perfil, indice)) {
         boasVindas.desenhar(raiz, s, perfil);
         return;
@@ -381,6 +433,8 @@ export default {
       }
       const ir = e.target.closest('[data-ir]');
       if (ir) destacar(Number(ir.dataset.ir));
+      const habito = e.target.closest('[data-abrir-habito]');
+      if (habito?.dataset.abrirHabito) navegar('rotina', { habito: habito.dataset.abrirHabito });
     });
 
     function destacar(id) {
@@ -395,18 +449,24 @@ export default {
 
     function menuItem(ancora, t) {
       const aberto = estaAberta(t);
+      const lembrete = R.ehLembrete(t);
       abrirMenu(ancora, [
         ...(aberto ? [{ rotulo: 'Começar foco', icone: 'timer', acao: () => navegar('foco', { tarefa: t.id }) }] : []),
         ...(aberto
           ? [
-              { rotulo: 'Adiar 30 min', icone: 'clock-plus', acao: () => adiarItem(t.id, 30).catch(() => {}) },
-              { rotulo: 'Adiar 1 hora', icone: 'clock-plus', acao: () => adiarItem(t.id, 60).catch(() => {}) },
+              ...(lembrete
+                ? []
+                : [
+                    { rotulo: 'Adiar 30 min', icone: 'clock-plus', acao: () => adiarItem(t.id, 30).catch(() => {}) },
+                    { rotulo: 'Adiar 1 hora', icone: 'clock-plus', acao: () => adiarItem(t.id, 60).catch(() => {}) },
+                  ]),
               { rotulo: 'Pular hoje', icone: 'skip-forward', acao: () => mudarStatus(t.id, STATUS.CANCELADA).catch(() => {}) },
             ]
           : [{ rotulo: 'Reabrir', icone: 'undo-2', acao: () => mudarStatus(t.id, STATUS.A_FAZER).catch(() => {}) }]),
         { separador: true },
         { rotulo: 'Detalhes e nota', icone: 'pencil', acao: () => abrirDetalhesItem(t) },
-        { rotulo: 'Remover deste dia', icone: 'trash-2', perigo: true, acao: () => excluirTarefa(t.id) },
+        // o item de um hábito volta sozinho (a API gera o dia de novo): para tirar só hoje, "Pular hoje"
+        ...(t.habitoId ? [] : [{ rotulo: 'Remover deste dia', icone: 'trash-2', perigo: true, acao: () => excluirTarefa(t.id) }]),
       ]);
     }
 

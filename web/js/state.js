@@ -1,15 +1,18 @@
 // Estado global + ações. As telas só leem o estado e chamam ações; nunca falam direto com a API.
 // Atualizações otimistas: a tela muda na hora e, se a API recusar, volta ao estado anterior.
-// Ações em lote (criar um hábito para 4 semanas, encerrar um hábito) mandam vários pedidos com
-// concorrência limitada e mostram o progresso numa notificação.
+// Hábitos: com a API nova, criar um hábito é UM pedido (POST /Habito) e a API gera a tarefa de cada
+// dia quando ele chega (POST /Habito/gerar, chamado ao carregar e na virada do dia).
+// Com a API antiga (sem HabitoController), o app volta ao modo anterior: cria as tarefas das próximas
+// semanas em lote, com concorrência limitada e o progresso numa notificação.
 import { criarStore } from './core/store.js';
 import { ler, gravar, remover } from './core/storage.js';
-import { normalizar, diaMes, plural } from './core/format.js';
+import { normalizar, diaMes, plural, inicioDoDia, somarDias, diferencaDias } from './core/format.js';
 import { criarFonteApi } from './data/api.js';
 import { criarFonteDemo, restaurarDemonstracao } from './data/demo.js';
-import { API_PADRAO, TEMPO_DESFAZER_MS } from './config.js';
+import { API_PADRAO, TEMPO_DESFAZER_MS, SEMANAS_PADRAO } from './config.js';
 import { STATUS, estaAberta } from './domain/enums.js';
-import { datasDaSerie, datasParaEstender, proximosAbertos, minutosDeTexto } from './domain/rotina.js';
+import { datasDaSerie, datasParaEstender, proximosAbertos, minutosDeTexto, chaveDia, fimSugerido, intervaloEntre, indiceRotina } from './domain/rotina.js';
+import { espalharHorarios } from './domain/frase.js';
 import { toast } from './ui/toast.js';
 
 // index.html?demo abre direto no modo demonstração (link para apresentar o sistema)
@@ -31,6 +34,8 @@ export const store = criarStore({
   usuarios: [],
   categorias: [],
   tarefas: [],
+  habitos: [],
+  suportaHabitos: false, // a API tem o HabitoController?
   foco: ler('foco', null), // { tarefaId, duracaoMs, fimEm, restanteMs, pausado }
   sincronizadoEm: null,
   sincronizando: false,
@@ -53,8 +58,30 @@ export function perfilAtual(s = store.get()) {
 
 let cargaAtual = 0;
 
+// histórico carregado: o Progresso usa até 17 semanas + a janela de comparação
+const DIAS_HISTORICO = 200;
+// a API gera os dias que faltarem nesse intervalo (dias sem abrir o app ficam como "não marcado")
+const DIAS_PARA_TRAS = 13;
+let diaGerado = null; // "perfil|2026-10-25": o último dia já pedido à API
+
+/** Junta tarefas novas às atuais (as novas ganham). */
+function mesclar(atuais, novas) {
+  if (!novas.length) return atuais;
+  const porId = new Map(atuais.map((t) => [t.id, t]));
+  novas.forEach((t) => porId.set(t.id, t));
+  return [...porId.values()];
+}
+
+/** Pede à API as tarefas dos hábitos de hoje (e dos dias recentes que faltarem). */
+async function gerarPauta(perfilId, { de } = {}) {
+  const hoje = inicioDoDia(new Date());
+  const tarefas = await fonte.habitos.gerar(perfilId, de ?? somarDias(hoje, -DIAS_PARA_TRAS), hoje);
+  diaGerado = `${perfilId}|${chaveDia(hoje)}`;
+  return tarefas.filter((t) => !exclusoesPendentes.has(t.id));
+}
+
 /**
- * Busca perfis, áreas e tarefas em paralelo.
+ * Busca perfis, áreas, tarefas e hábitos em paralelo; depois a API gera a pauta de hoje.
  * Se a tela já tem dados, mantém o que está visível (sem "piscar" esqueleto) e só avisa em caso de erro.
  */
 export async function carregarTudo() {
@@ -62,11 +89,28 @@ export async function carregarTudo() {
   const jaPronto = store.get().fase === 'pronto';
   store.set(jaPronto ? { sincronizando: true } : { fase: 'carregando', erro: null, sincronizando: true });
   try {
-    const [usuarios, categorias, tarefas] = await Promise.all([fonte.usuarios.listar(), fonte.categorias.listar(), fonte.tarefas.listar()]);
+    const de = somarDias(inicioDoDia(new Date()), -DIAS_HISTORICO);
+    const [usuarios, categorias, tarefas, habitos] = await Promise.all([
+      fonte.usuarios.listar(),
+      fonte.categorias.listar(),
+      fonte.tarefas.listar({ de }),
+      fonte.habitos ? fonte.habitos.listar() : null,
+    ]);
     if (id !== cargaAtual) return; // uma carga mais nova já está em andamento
+    const suportaHabitos = habitos !== null;
     // tarefas com exclusão pendente (aguardando "Desfazer") continuam escondidas
-    const visiveis = tarefas.filter((t) => !exclusoesPendentes.has(t.id));
-    store.set({ fase: 'pronto', erro: null, usuarios, categorias, tarefas: visiveis, sincronizadoEm: new Date(), sincronizando: false });
+    let visiveis = tarefas.filter((t) => !exclusoesPendentes.has(t.id));
+    const atual = store.get();
+    const perfilId = usuarios.some((u) => u.id === atual.perfilId) ? atual.perfilId : usuarios.length === 1 ? usuarios[0].id : null;
+    if (suportaHabitos && perfilId) {
+      try {
+        visiveis = mesclar(visiveis, await gerarPauta(perfilId));
+      } catch (e) {
+        toast(`Não foi possível montar a pauta de hoje. ${e?.message ?? ''}`.trim(), { tipo: 'erro' });
+      }
+      if (id !== cargaAtual) return;
+    }
+    store.set({ fase: 'pronto', erro: null, usuarios, categorias, tarefas: visiveis, habitos: habitos ?? [], suportaHabitos, sincronizadoEm: new Date(), sincronizando: false });
     const s = store.get();
     if (!s.usuarios.some((u) => u.id === s.perfilId) && s.usuarios.length === 1) definirPerfil(s.usuarios[0].id);
   } catch (erro) {
@@ -78,6 +122,20 @@ export async function carregarTudo() {
       return;
     }
     store.set({ fase: 'erro', erro, sincronizando: false });
+  }
+}
+
+/** Virou o dia com o app aberto (ou trocou o perfil): pede à API a pauta do dia. */
+export async function garantirPautaDeHoje() {
+  const s = store.get();
+  const perfil = perfilAtual(s);
+  if (!s.suportaHabitos || !perfil || s.fase !== 'pronto') return;
+  if (diaGerado === `${perfil.id}|${chaveDia(new Date())}`) return;
+  try {
+    const novas = await gerarPauta(perfil.id);
+    store.set((st) => ({ tarefas: mesclar(st.tarefas, novas) }));
+  } catch {
+    /* tenta de novo no próximo minuto */
   }
 }
 
@@ -115,6 +173,7 @@ export function definirTema(tema) {
 export function definirPerfil(id) {
   gravar(`perfil:${store.get().fonte}`, id);
   store.set({ perfilId: id });
+  garantirPautaDeHoje();
 }
 
 export async function reiniciarDemonstracao() {
@@ -192,17 +251,47 @@ export async function criarItem(dados, { mensagem } = {}) {
 }
 
 /**
- * Cria um hábito: uma tarefa para cada dia e horário escolhidos, pelas próximas N semanas.
- * @param {{ titulo: string, descricao?: string, categoriaId: number, dias: number[], horarios: string[], semanas?: number, inicio?: Date }} h
+ * Cria um hábito.
+ * Com a API nova: um POST /Habito e, se ele já vale hoje, a API gera o item de hoje.
+ * Com a API antiga: as tarefas das próximas semanas, uma por dia (o modo de antes).
+ * @param {{ titulo: string, descricao?: string, categoriaId: number, dias: number[],
+ *   horaInicio?: string|null, horaFim?: string|null, lembrarACadaMinutos?: number|null,
+ *   dataInicio?: Date, dataFim?: Date|null }} h  sem horaInicio = lembrete (sem horário)
  */
-export async function criarHabito({ titulo, descricao = '', categoriaId, dias, horarios, semanas = 4, inicio = new Date() }) {
+export async function criarHabito(h, { mensagem } = {}) {
   const perfil = exigirPerfil();
-  const datas = datasDaSerie({ dias, horarios, inicio, semanas });
+  const dados = { descricao: '', horaInicio: null, horaFim: null, lembrarACadaMinutos: null, dataFim: null, ...h, dataInicio: inicioDoDia(h.dataInicio ?? new Date()) };
+  gravar('ultimaArea', dados.categoriaId);
+  if (!store.get().suportaHabitos) return criarHabitoEmTarefas(dados, perfil);
+  try {
+    const novo = await fonte.habitos.criar({ ...dados, ativo: true, usuarioId: perfil.id });
+    store.set((s) => ({ habitos: [...s.habitos, novo] }));
+    if (diferencaDias(novo.dataInicio, new Date()) <= 0) {
+      const hoje = inicioDoDia(new Date());
+      const geradas = await fonte.habitos.gerar(perfil.id, hoje, hoje).catch(() => []);
+      store.set((s) => ({ tarefas: mesclar(s.tarefas, geradas) }));
+    }
+    if (mensagem !== null) {
+      const quando = diferencaDias(novo.dataInicio, new Date()) > 0 ? ` a partir de ${diaMes(novo.dataInicio)}` : '';
+      toast(mensagem ?? `${novo.titulo} entrou na rotina${quando}`, { tipo: 'sucesso' });
+    }
+    return novo;
+  } catch (e) {
+    return falhou(e, 'criar o hábito');
+  }
+}
+
+/** Modo antigo (API sem hábitos): uma tarefa por dia e horário, pelas semanas do prazo. */
+async function criarHabitoEmTarefas({ titulo, descricao, categoriaId, dias, horaInicio, lembrarACadaMinutos, dataInicio, dataFim }, perfil) {
+  // um lembrete vira itens espalhados pelo dia (4 se pediu aviso, senão um às 9h)
+  const horarios = horaInicio ? [horaInicio] : lembrarACadaMinutos ? espalharHorarios(4) : ['09:00'];
+  const semanas = dataFim ? Math.max(1, Math.ceil((diferencaDias(dataFim, dataInicio) + 1) / 7)) : SEMANAS_PADRAO;
+  const inicio = dataInicio < new Date() ? new Date() : dataInicio;
+  const datas = datasDaSerie({ dias, horarios, inicio, semanas }).filter((d) => !dataFim || d < somarDias(dataFim, 1));
   if (!datas.length) {
     toast('Nenhum dia e horário cai nesse período. Confira os dias da semana e os horários.', { tipo: 'erro' });
-    return { criadas: [], falhas: [] };
+    return null;
   }
-  gravar('ultimaArea', categoriaId);
   const barra = progresso((n, total) => `Criando ${titulo}: ${n} de ${total}…`, datas.length);
   const { resultados, falhas } = await emLote(
     datas,
@@ -213,14 +302,84 @@ export async function criarHabito({ titulo, descricao = '', categoriaId, dias, h
   if (falhas.length) {
     barra.terminar(`${titulo}: ${resultados.length} de ${datas.length} criados. ${falhas[0].erro.message}`, 'erro');
   } else {
-    const ultima = datas.at(-1);
-    barra.terminar(datas.length === 1 ? `${titulo} adicionado à pauta` : `${titulo}: ${plural(datas.length, 'item', 'itens')} na pauta até ${diaMes(ultima)}`);
+    barra.terminar(datas.length === 1 ? `${titulo} adicionado à pauta` : `${titulo}: ${plural(datas.length, 'item', 'itens')} na pauta até ${diaMes(datas.at(-1))}`);
   }
-  return { criadas: resultados, falhas };
+  return null;
 }
 
-/** Mais N semanas de um hábito, no mesmo padrão de dias e horários. */
-export async function estenderHabito(serie, semanas = 4) {
+/** Salva mudanças num hábito da API. A API refaz os próximos itens em aberto; o resto vem na sincronização. */
+async function salvarHabito(serie, mudancas, mensagem) {
+  const h = serie.habito;
+  try {
+    const salvo = await fonte.habitos.atualizar(h.id, { ...h, ...mudancas });
+    store.set((s) => ({ habitos: s.habitos.map((x) => (x.id === salvo.id ? salvo : x)) }));
+    diaGerado = null;
+    await carregarTudo();
+    if (mensagem) toast(typeof mensagem === 'function' ? mensagem(salvo) : mensagem, { tipo: 'sucesso' });
+    return salvo;
+  } catch (e) {
+    return falhou(e, 'salvar o hábito');
+  }
+}
+
+/**
+ * Um hábito do modo antigo (só tarefas) vira um hábito da API, com o mesmo nome e área:
+ * o histórico continua junto. Os próximos itens antigos em aberto saem; o hábito novo
+ * começa no dia seguinte ao último item antigo (ou hoje, se não houver item hoje).
+ */
+async function converterSerie(serie, dados = {}, { semanas = null } = {}) {
+  const hoje = inicioDoDia(new Date());
+  const abertos = proximosAbertos(serie);
+  if (abertos.length) await apagarItens(abertos);
+  const restante = indiceDoPerfil()?.series.get(serie.chave);
+  const temHoje = restante?.dias.has(chaveDia(hoje));
+  const ultimo = restante?.ultimo ? somarDias(inicioDoDia(restante.ultimo), 1) : hoje;
+  let dataInicio = ultimo > hoje ? ultimo : temHoje ? somarDias(hoje, 1) : hoje;
+  const varios = serie.padrao.horarios.length > 1;
+  const horaInicio = varios ? null : serie.padrao.horarios[0] ?? null;
+  const base = {
+    titulo: serie.titulo,
+    descricao: serie.itens.at(-1)?.descricao ?? '',
+    categoriaId: serie.categoriaId,
+    dias: serie.padrao.dias,
+    horaInicio,
+    horaFim: horaInicio ? fimSugerido(horaInicio, serie.titulo) : null,
+    lembrarACadaMinutos: varios ? intervaloEntre(serie.padrao.horarios) : null,
+    dataFim: null,
+  };
+  const final = { ...base, ...dados };
+  if (final.dataFim && final.dataFim < dataInicio) final.dataFim = dataInicio;
+  if (dados.dataInicio && dados.dataInicio > dataInicio) dataInicio = dados.dataInicio;
+  if (semanas) final.dataFim = somarDias(dataInicio, semanas * 7 - 1);
+  return criarHabito({ ...final, dataInicio }, { mensagem: `${serie.titulo} agora é um hábito${final.dataFim ? ` até ${diaMes(final.dataFim)}` : ' sem prazo'}. O histórico continua junto.` });
+}
+
+function indiceDoPerfil() {
+  const s = store.get();
+  const p = perfilAtual(s);
+  return p ? indiceRotina(s.tarefas, p.id, s.habitos) : null;
+}
+
+async function apagarItens(alvos) {
+  const { resultados } = await emLote(alvos, (t) => fonte.tarefas.excluir(t.id).then(() => t.id));
+  const apagados = new Set(resultados);
+  store.set((s) => ({ tarefas: s.tarefas.filter((t) => !apagados.has(t.id)) }));
+}
+
+/** Mais N semanas de um hábito (ou "Retomar", se estava encerrado). */
+export async function estenderHabito(serie, semanas = SEMANAS_PADRAO) {
+  if (serie.habito) {
+    const h = serie.habito;
+    const hoje = inicioDoDia(new Date());
+    const encerrado = !h.ativo || (h.dataFim && h.dataFim < hoje);
+    if (encerrado) {
+      // volta a partir de hoje (sem cobrar os dias em que esteve parado), sem prazo
+      return salvarHabito(serie, { ativo: true, dataInicio: hoje, dataFim: null }, `${h.titulo} voltou para a rotina, sem prazo`);
+    }
+    const base = h.dataFim && h.dataFim > hoje ? h.dataFim : hoje;
+    return salvarHabito(serie, { dataFim: somarDias(base, semanas * 7) }, (salvo) => `${salvo.titulo} segue até ${diaMes(salvo.dataFim)}`);
+  }
+  if (store.get().suportaHabitos) return converterSerie(serie, {}, { semanas });
   const perfil = exigirPerfil();
   const datas = datasParaEstender(serie, semanas);
   if (!datas.length) {
@@ -239,8 +398,31 @@ export async function estenderHabito(serie, semanas = 4) {
   else barra.terminar(`${serie.titulo} segue na pauta até ${diaMes(datas.at(-1))}`);
 }
 
+/** Tira o prazo de um hábito da API: ele segue até ser encerrado. */
+export function tirarPrazo(serie) {
+  return salvarHabito(serie, { dataFim: null }, `${serie.titulo} agora não tem prazo`);
+}
+
 /**
- * Muda os próximos itens em aberto de um hábito (os já feitos ficam como estão, para o histórico).
+ * Salva o formulário de um hábito que já existe.
+ * Hábito da API: um PUT; a API ajusta os próximos itens em aberto.
+ * Hábito do modo antigo com a API nova: vira um hábito da API (converterSerie).
+ * Modo antigo puro: refaz os próximos itens (como antes).
+ */
+export async function editarHabito(serie, dados) {
+  if (serie.habito) return salvarHabito(serie, dados, `${dados.titulo ?? serie.titulo} salvo. Os próximos itens seguem a regra nova.`);
+  if (store.get().suportaHabitos) return converterSerie(serie, dados);
+  const horarios = dados.horaInicio ? [dados.horaInicio] : serie.padrao.horarios;
+  const mudouPadrao = dados.dias.join() !== serie.padrao.dias.join() || horarios.join() !== serie.padrao.horarios.join();
+  if (!mudouPadrao) return editarProximos(serie, { titulo: dados.titulo, categoriaId: dados.categoriaId, descricao: dados.descricao });
+  // refaz os próximos itens no novo padrão, até a mesma data em que o hábito acabaria
+  const semanas = Math.max(1, Math.ceil((Math.max(0, diferencaDias(serie.ultimo, new Date())) + 1) / 7));
+  await encerrarHabito(serie).catch(() => {});
+  return criarHabito({ ...dados, dataInicio: new Date(), dataFim: somarDias(inicioDoDia(new Date()), semanas * 7 - 1) });
+}
+
+/**
+ * Muda os próximos itens em aberto de um hábito do modo antigo (os já feitos ficam como estão, para o histórico).
  * @param {{ titulo?: string, categoriaId?: number, horario?: string, descricao?: string }} mudancas
  */
 export async function editarProximos(serie, mudancas) {
@@ -271,8 +453,13 @@ export async function editarProximos(serie, mudancas) {
   else barra.terminar(`${plural(alvos.length, 'próximo item atualizado', 'próximos itens atualizados')}`);
 }
 
-/** Encerra um hábito: apaga os itens futuros em aberto e mantém o histórico. */
+/** Encerra um hábito: os itens que ainda não começaram saem e o histórico fica. */
 export async function encerrarHabito(serie) {
+  if (serie.habito) {
+    const h = serie.habito;
+    const hoje = inicioDoDia(new Date());
+    return salvarHabito(serie, { ativo: false, dataFim: h.dataInicio > hoje ? h.dataInicio : hoje }, `${h.titulo} encerrado. O histórico continua no Progresso.`);
+  }
   const alvos = proximosAbertos(serie);
   if (!alvos.length) return;
   const barra = progresso((n, total) => `Encerrando ${serie.titulo}: ${n} de ${total}…`, alvos.length);
@@ -287,6 +474,8 @@ export async function atualizarTarefa(id, dados, { mensagem = 'Item salvo' } = {
   const anterior = store.get().tarefas.find((t) => t.id === id);
   if (!anterior) return null;
   const otimista = { ...anterior, ...dados };
+  // mudou o início de um item com fim: o fim anda junto (a duração fica igual)
+  if (dados.dataLimite && anterior.fim && !('fim' in dados)) otimista.fim = new Date(anterior.fim.getTime() + (dados.dataLimite - anterior.dataLimite));
   store.set((s) => ({ tarefas: substituir(s.tarefas, otimista) }));
   try {
     const salva = await fonte.tarefas.atualizar(id, otimista);
@@ -446,8 +635,8 @@ function crud(chave, nomeSingular, genero = 'a') {
       const campo = chave === 'usuarios' ? 'usuarioId' : 'categoriaId';
       try {
         await fonte[chave].excluir(id);
-        // o banco apaga as tarefas ligadas (ON DELETE CASCADE); refletimos isso na tela
-        store.set((s) => ({ [chave]: s[chave].filter((x) => x.id !== id), tarefas: s.tarefas.filter((t) => t[campo] !== id) }));
+        // o banco apaga as tarefas e os hábitos ligados (ON DELETE CASCADE); refletimos isso na tela
+        store.set((s) => ({ [chave]: s[chave].filter((x) => x.id !== id), tarefas: s.tarefas.filter((t) => t[campo] !== id), habitos: s.habitos.filter((h) => h[campo] !== id) }));
         toast(`${nomeSingular} ${excluida}`, { tipo: 'sucesso' });
         return true;
       } catch (e) {

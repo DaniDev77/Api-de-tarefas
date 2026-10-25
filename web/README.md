@@ -80,23 +80,28 @@ Para mostrar a um cliente, abra direto `http://127.0.0.1:5500/index.html?demo`: 
 
 ---
 
-## Como a rotina usa a API (sem mudar nada nela)
+## Como a rotina usa a API
 
 | Na rotina | Na API | Como |
 |---|---|---|
 | Perfil (quem usa) | `Usuario` | Cada perfil tem a sua rotina. E-mail e telefone são opcionais. |
 | Área (Saúde, Treino…) | `Categoria` | O tom de cada área vem do ID e não muda. |
-| Item da pauta de um dia | `Tarefa` | `DataLimite` = dia + horário. |
-| Hábito | várias `Tarefa` | Mesmo perfil, mesmo título e mesma área. Ao criar "Academia, seg/qua/sex, 18:30", o app cria as tarefas das próximas 4 semanas. |
-| Água 4x ao dia | 4 `Tarefa` por dia | Uma por horário; a tela mostra "2 de 4". |
+| Hábito | `Habito` | A regra: dias da semana (`DiasSemana` "1,3,5"), `HoraInicio` e `HoraFim`, prazo (`DataFim`, nulo = sem prazo). |
+| Hábito sem horário (água) | `Habito` sem horas | Lembrete: vale o dia todo (00:00 às 23:59), nunca fica atrasado. `LembrarACadaMinutos` liga o aviso. |
+| Item da pauta de um dia | `Tarefa` | Gerada pela API quando o dia chega (`POST /api/Habito/gerar`), com `HabitoId`, `DataInicio` e `DataLimite` (fim). Item avulso não tem hábito nem início. |
+| Dias que ainda não chegaram | nada no banco | O site calcula os itens previstos a partir dos hábitos. |
 | Feito / Pulado | `Status` 3 / 4 | Pulado (Cancelada) não conta como falha nem como feito. |
 | Foco rodando | `Status` 2 | O item fica "Em andamento" enquanto o cronômetro roda. |
 
-- **Estender**: cria mais 4 semanas no mesmo padrão de dias e horários (a tela Rotina avisa quando um hábito está acabando).
-- **Editar os próximos**: muda nome, área e nota dos itens futuros em aberto; mudar os dias refaz os próximos itens. O histórico nunca é alterado.
-- **Encerrar**: apaga os itens futuros em aberto e mantém o histórico no Progresso.
+- **Ao abrir o app**: `GET /api/Habito`, `GET /api/Tarefa?de=` (últimos 200 dias) e `POST /api/Habito/gerar` para hoje e os 13 dias anteriores. Dia em que o app não foi aberto aparece como "não marcado".
+- **Criar um hábito**: um `POST /api/Habito`. Nada de semanas de tarefas de uma vez.
+- **Editar**: `PUT /api/Habito/{id}`; a API ajusta os próximos itens em aberto. O histórico nunca é alterado.
+- **Estender / tirar o prazo / retomar**: muda `DataFim` e `Ativo`.
+- **Encerrar**: `Ativo = false`; os itens que ainda não começaram saem e o histórico fica no Progresso.
 - **Sequência**: dias (ou vezes, para hábitos que não são diários) seguidos com tudo feito. Dia pulado não quebra a sequência.
 - **Constância**: feitos ÷ (feitos + não marcados), sem contar os pulados.
+- **Avisos**: com o app aberto, das 8h às 22h, no intervalo escolhido, enquanto o lembrete não foi marcado.
+- **API antiga** (sem `HabitoController`): o site percebe (404 em `/api/Habito`) e volta ao modo anterior, criando as tarefas das próximas semanas. Os hábitos antigos com o mesmo nome e área viram hábitos da API ao estender ou editar, e o histórico continua junto.
 
 ## Escreva como fala
 
@@ -222,9 +227,8 @@ O visual segue a skill **taste-skill** (`design-taste-frontend`), fluxo de telas
 
 ## Próximos passos sugeridos
 
-- Na API: uma tabela de hábitos (com dias e horários) para a repetição não depender de criar tarefas com antecedência
-- Na API: quantidade em um registro (copos, minutos) em vez de um item por horário
-- `GET /api/Tarefa?usuarioId=&de=&ate=` para não baixar todas as tarefas de uma vez
+- Na API: quantidade num registro (copos, minutos) para hábitos como "8 copos de água"
+- Avisos com o app fechado (Web Push, precisa de um serviço na API)
 - Devolver `404` em vez de `500` quando o registro não existe (`Atualizar`/`Apagar` nos repositórios)
 
 ## Créditos
