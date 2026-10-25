@@ -45,6 +45,65 @@ namespace projeto.Migrations
                     b.ToTable("Categorias");
                 });
 
+            modelBuilder.Entity("projeto.Models.HabitoModel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("CategoriaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DataFim")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DataInicio")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Descricao")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("DiasSemana")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<TimeOnly?>("HoraFim")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly?>("HoraInicio")
+                        .HasColumnType("time");
+
+                    b.Property<int?>("LembrarACadaMinutos")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoriaId");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("Habitos");
+                });
+
             modelBuilder.Entity("projeto.Models.TarefaModel", b =>
                 {
                     b.Property<int>("Id")
@@ -59,6 +118,9 @@ namespace projeto.Migrations
                     b.Property<DateTime>("DataCriacao")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DataInicio")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("DataLimite")
                         .HasColumnType("datetime2");
 
@@ -66,6 +128,9 @@ namespace projeto.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("HabitoId")
+                        .HasColumnType("int");
 
                     b.Property<int>("Prioridade")
                         .HasColumnType("int");
@@ -87,7 +152,9 @@ namespace projeto.Migrations
 
                     b.HasIndex("CategoriaId");
 
-                    b.HasIndex("UsuarioId");
+                    b.HasIndex("HabitoId", "DataInicio");
+
+                    b.HasIndex("UsuarioId", "DataLimite");
 
                     b.ToTable("Tarefas");
                 });
@@ -120,16 +187,16 @@ namespace projeto.Migrations
                     b.ToTable("Usuarios");
                 });
 
-            modelBuilder.Entity("projeto.Models.TarefaModel", b =>
+            modelBuilder.Entity("projeto.Models.HabitoModel", b =>
                 {
                     b.HasOne("projeto.Models.CategoriaModel", "Categoria")
-                        .WithMany("Tarefas")
+                        .WithMany()
                         .HasForeignKey("CategoriaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("projeto.Models.UsuarioModel", "Usuario")
-                        .WithMany("Tarefas")
+                        .WithMany()
                         .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -139,7 +206,37 @@ namespace projeto.Migrations
                     b.Navigation("Usuario");
                 });
 
+            modelBuilder.Entity("projeto.Models.TarefaModel", b =>
+                {
+                    b.HasOne("projeto.Models.CategoriaModel", "Categoria")
+                        .WithMany("Tarefas")
+                        .HasForeignKey("CategoriaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("projeto.Models.HabitoModel", "Habito")
+                        .WithMany("Tarefas")
+                        .HasForeignKey("HabitoId");
+
+                    b.HasOne("projeto.Models.UsuarioModel", "Usuario")
+                        .WithMany("Tarefas")
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Categoria");
+
+                    b.Navigation("Habito");
+
+                    b.Navigation("Usuario");
+                });
+
             modelBuilder.Entity("projeto.Models.CategoriaModel", b =>
+                {
+                    b.Navigation("Tarefas");
+                });
+
+            modelBuilder.Entity("projeto.Models.HabitoModel", b =>
                 {
                     b.Navigation("Tarefas");
                 });
