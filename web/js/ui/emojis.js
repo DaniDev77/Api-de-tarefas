@@ -1,18 +1,23 @@
-// Emoji das notificações: combina com o hábito (água, treino, leitura…) e muda a cada aviso,
-// para a notificação não ficar sempre igual. O emoji é enfeite: o texto continua dizendo tudo.
+// Figura das notificações: combina com o hábito e muda a cada aviso.
+// Academia/treino, água, estudo/leitura e conclusão usam as ilustrações do Pauta
+// (assets/notificacao/*.png); os outros hábitos usam emoji. É enfeite: o texto continua dizendo tudo.
 import { normalizar } from '../core/format.js';
+
+const FIGURA = (nome) => `assets/notificacao/${nome}.png`;
+/** A figura é uma ilustração (caminho de imagem) ou um emoji? */
+export const ehImagem = (figura) => typeof figura === 'string' && figura.startsWith('assets/');
 
 // a ordem importa: o primeiro grupo cujas palavras aparecem no título vence
 const GRUPOS = [
-  { palavras: ['agua', 'hidrat', 'beber'], emojis: ['💧', '🥤', '🚰', '🧊'] },
+  { palavras: ['agua', 'hidrat', 'beber'], emojis: [FIGURA('agua')] },
   { palavras: ['remedio', 'medicamento', 'vitamina', 'suplemento'], emojis: ['💊', '🍊', '🩺'] },
-  { palavras: ['academia', 'treino', 'treinar', 'musculacao', 'crossfit', 'flexoes'], emojis: ['🏋️', '💪', '🔥', '🏅'] },
-  { palavras: ['correr', 'corrida', 'caminhar', 'caminhada', 'pedalar', 'bike'], emojis: ['🏃', '👟', '🚴', '🌳'] },
+  { palavras: ['academia', 'treino', 'treinar', 'musculacao', 'crossfit', 'flexoes'], emojis: [FIGURA('academia')] },
+  { palavras: ['correr', 'corrida', 'caminhar', 'caminhada', 'pedalar', 'bike'], emojis: [FIGURA('academia'), '🏃', '👟'] },
   { palavras: ['yoga', 'alongar', 'alongamento', 'pilates'], emojis: ['🧘', '🤸', '🌿'] },
   { palavras: ['meditar', 'meditacao', 'respirar'], emojis: ['🧘', '🌿', '🕊️'] },
   { palavras: ['futebol', 'nadar', 'natacao', 'esporte'], emojis: ['⚽', '🏊', '🏅'] },
-  { palavras: ['ler', 'leitura', 'livro'], emojis: ['📖', '📚', '🔖'] },
-  { palavras: ['estudar', 'estudo', 'aula', 'curso', 'revisar', 'prova', 'faculdade', 'tcc', 'exercicios', 'ingles', 'idioma'], emojis: ['📚', '✏️', '🧠', '🎓'] },
+  { palavras: ['ler', 'leitura', 'livro'], emojis: [FIGURA('estudo')] },
+  { palavras: ['estudar', 'estudo', 'aula', 'curso', 'revisar', 'prova', 'faculdade', 'tcc', 'exercicios', 'ingles', 'idioma'], emojis: [FIGURA('estudo')] },
   { palavras: ['acordar', 'despertar'], emojis: ['⏰', '🌅', '☀️'] },
   { palavras: ['dormir', 'sono', 'deitar', 'cochilo', 'soneca'], emojis: ['😴', '🌙', '🛏️'] },
   { palavras: ['cama'], emojis: ['🛏️', '✨'] },
@@ -28,8 +33,8 @@ const GRUPOS = [
   { palavras: ['pagar', 'conta', 'boleto'], emojis: ['💳', '🧾'] },
 ];
 const QUALQUER = ['✨', '⭐', '👉', '🔔', '📌'];
-const FEITO = ['✅', '👏', '🙌', '💯', '⭐', '🎯'];
-const DIA_COMPLETO = ['🎉', '🏆', '🥳', '🌟', '🙌'];
+const FEITO = [FIGURA('conclusao')];
+const DIA_COMPLETO = [FIGURA('conclusao')];
 
 const ultimo = new Map(); // lista -> último emoji usado (para não repetir seguido)
 
@@ -50,8 +55,8 @@ function grupoDe(titulo = '') {
 /** Emoji que combina com o hábito ou item ("Beber água" -> 💧, 🥤…). */
 export const emojiDe = (titulo) => sortear(grupoDe(titulo)?.emojis ?? QUALQUER);
 
-/** Emoji de comemoração ao marcar como feito: o do hábito ou um de "feito". */
-export const emojiFeito = (titulo) => (grupoDe(titulo) && Math.random() < 0.5 ? emojiDe(titulo) : sortear(FEITO));
+/** Figura ao marcar como feito: a ilustração de conclusão. */
+export const emojiFeito = () => sortear(FEITO);
 
 export const emojiDiaCompleto = () => sortear(DIA_COMPLETO);
 

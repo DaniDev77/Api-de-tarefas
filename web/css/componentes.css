@@ -757,6 +757,22 @@ input[type='date'].entrada {
   line-height: 1;
   animation: emoji-entra 420ms var(--curva-mola) both;
 }
+/* ilustração do Pauta (academia, água, estudo, conclusão): sem o círculo de fundo, um pouco maior */
+.toast__figura {
+  width: 36px;
+  height: 36px;
+  margin: -6px 0 -6px -4px;
+  padding: 3px;
+  border-radius: 10px;
+  /* o mesmo papel claro das ilustrações: o kettlebell escuro não some na notificação escura */
+  background: #f0f1f5;
+  animation: emoji-entra 420ms var(--curva-mola) both;
+}
+.toast__figura img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 @keyframes emoji-entra {
   from {
     transform: scale(0.4) rotate(-12deg);
@@ -764,7 +780,8 @@ input[type='date'].entrada {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .toast__emoji {
+  .toast__emoji,
+  .toast__figura {
     animation: none;
   }
 }

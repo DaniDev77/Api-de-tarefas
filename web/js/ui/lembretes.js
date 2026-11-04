@@ -7,7 +7,7 @@ import { store, perfilAtual, mudarStatus, garantirPautaDeHoje } from '../state.j
 import { STATUS } from '../domain/enums.js';
 import { chaveDia } from '../domain/rotina.js';
 import { toast } from './toast.js';
-import { emojiDe, chamadaLembrete } from './emojis.js';
+import { emojiDe, chamadaLembrete, ehImagem } from './emojis.js';
 
 const DAS = 8 * 60;
 const ATE = 22 * 60;
@@ -32,7 +32,7 @@ function avisar(h, tarefa) {
   });
   try {
     if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-      new Notification(`${emoji} ${h.titulo}`, { body: chamada, icon: 'assets/icone-192.png', tag: `pauta-lembrete-${h.id}` });
+      new Notification(ehImagem(emoji) ? h.titulo : `${emoji} ${h.titulo}`, { body: chamada, icon: ehImagem(emoji) ? emoji : 'assets/icone-192.png', tag: `pauta-lembrete-${h.id}` });
     }
   } catch {
     /* sem notificação do sistema: a do app basta */

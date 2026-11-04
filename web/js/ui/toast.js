@@ -1,6 +1,7 @@
 // Notificações curtas (região aria-live: leitores de tela anunciam sem roubar o foco).
 import { html, render } from '../core/html.js';
 import { icone } from './icons.js';
+import { ehImagem } from './emojis.js';
 
 let regiao;
 
@@ -31,7 +32,7 @@ export function toast(mensagem, { tipo = 'info', duracao, acao, detalhe, emoji }
   else el.classList.add('toast--fixo');
   render(
     el,
-    html`${emoji ? html`<span class="toast__icone toast__emoji" aria-hidden="true">${emoji}</span>` : html`<span class="toast__icone">${icone(ICONES[tipo], { tamanho: 16 })}</span>`}
+    html`${emoji && ehImagem(emoji) ? html`<span class="toast__icone toast__figura" aria-hidden="true"><img src="${emoji}" alt="" width="36" height="36"></span>` : emoji ? html`<span class="toast__icone toast__emoji" aria-hidden="true">${emoji}</span>` : html`<span class="toast__icone">${icone(ICONES[tipo], { tamanho: 16 })}</span>`}
       <div class="toast__texto">
         <p>${mensagem}</p>
         ${detalhe ? html`<p class="toast__detalhe">${detalhe}</p>` : ''}

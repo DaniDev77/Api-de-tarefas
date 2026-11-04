@@ -505,7 +505,7 @@ export function mudarStatus(id, status, { desfazer = true } = {}) {
     if (desfazer) {
       toast(MENSAGEM_STATUS[status](tarefa), {
         tipo: 'sucesso',
-        emoji: status === STATUS.CONCLUIDA ? emojiFeito(tarefa.titulo) : undefined,
+        emoji: status === STATUS.CONCLUIDA ? emojiFeito() : undefined,
         acao: { rotulo: 'Desfazer', fn: () => atualizarTarefa(id, { status: anterior }, { mensagem: null }).catch(() => {}) },
       });
     }
