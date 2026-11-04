@@ -18,19 +18,20 @@ const ICONES = { sucesso: 'check', erro: 'triangle-alert', info: 'circle-help', 
 
 /**
  * @param {string} mensagem
- * @param {{ tipo?: 'sucesso'|'erro'|'info'|'progresso', duracao?: number, acao?: { rotulo: string, fn: () => void }, detalhe?: string }} [opcoes]
+ * @param {{ tipo?: 'sucesso'|'erro'|'info'|'progresso', duracao?: number, acao?: { rotulo: string, fn: () => void }, detalhe?: string, emoji?: string }} [opcoes]
+ *   emoji: aparece no lugar do ícone (enfeite; o texto continua dizendo tudo)
  */
-export function toast(mensagem, { tipo = 'info', duracao, acao, detalhe } = {}) {
+export function toast(mensagem, { tipo = 'info', duracao, acao, detalhe, emoji } = {}) {
   const alvo = garantirRegiao();
   const tempo = duracao ?? (tipo === 'erro' ? 7000 : acao ? 6000 : 3200);
   const el = document.createElement('div');
-  el.className = `toast toast--${tipo}`;
+  el.className = `toast toast--${tipo}${emoji ? ' toast--emoji' : ''}`;
   el.setAttribute('role', tipo === 'erro' ? 'alert' : 'status');
   if (Number.isFinite(tempo)) el.style.setProperty('--duracao', `${tempo}ms`);
   else el.classList.add('toast--fixo');
   render(
     el,
-    html`<span class="toast__icone">${icone(ICONES[tipo], { tamanho: 16 })}</span>
+    html`${emoji ? html`<span class="toast__icone toast__emoji" aria-hidden="true">${emoji}</span>` : html`<span class="toast__icone">${icone(ICONES[tipo], { tamanho: 16 })}</span>`}
       <div class="toast__texto">
         <p>${mensagem}</p>
         ${detalhe ? html`<p class="toast__detalhe">${detalhe}</p>` : ''}

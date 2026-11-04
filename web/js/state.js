@@ -14,6 +14,7 @@ import { STATUS, estaAberta } from './domain/enums.js';
 import { datasDaSerie, datasParaEstender, proximosAbertos, minutosDeTexto, chaveDia, fimSugerido, intervaloEntre, indiceRotina } from './domain/rotina.js';
 import { espalharHorarios } from './domain/frase.js';
 import { toast } from './ui/toast.js';
+import { emojiDe, emojiFeito } from './ui/emojis.js';
 
 // index.html?demo abre direto no modo demonstração (link para apresentar o sistema)
 const linkDemo = new URLSearchParams(location.search).has('demo');
@@ -273,7 +274,7 @@ export async function criarHabito(h, { mensagem } = {}) {
     }
     if (mensagem !== null) {
       const quando = diferencaDias(novo.dataInicio, new Date()) > 0 ? ` a partir de ${diaMes(novo.dataInicio)}` : '';
-      toast(mensagem ?? `${novo.titulo} entrou na rotina${quando}`, { tipo: 'sucesso' });
+      toast(mensagem ?? `${novo.titulo} entrou na rotina${quando}`, { tipo: 'sucesso', emoji: emojiDe(novo.titulo) });
     }
     return novo;
   } catch (e) {
@@ -504,6 +505,7 @@ export function mudarStatus(id, status, { desfazer = true } = {}) {
     if (desfazer) {
       toast(MENSAGEM_STATUS[status](tarefa), {
         tipo: 'sucesso',
+        emoji: status === STATUS.CONCLUIDA ? emojiFeito(tarefa.titulo) : undefined,
         acao: { rotulo: 'Desfazer', fn: () => atualizarTarefa(id, { status: anterior }, { mensagem: null }).catch(() => {}) },
       });
     }

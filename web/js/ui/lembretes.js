@@ -7,6 +7,7 @@ import { store, perfilAtual, mudarStatus, garantirPautaDeHoje } from '../state.j
 import { STATUS } from '../domain/enums.js';
 import { chaveDia } from '../domain/rotina.js';
 import { toast } from './toast.js';
+import { emojiDe, chamadaLembrete } from './emojis.js';
 
 const DAS = 8 * 60;
 const ATE = 22 * 60;
@@ -22,13 +23,16 @@ export function pedirPermissaoAvisos() {
 }
 
 function avisar(h, tarefa) {
-  toast(`Lembrete: ${h.titulo}`, {
+  const emoji = emojiDe(h.titulo);
+  const chamada = chamadaLembrete();
+  toast(`${h.titulo}: ${chamada}`, {
+    emoji,
     duracao: 12000,
     acao: { rotulo: 'Fiz', fn: () => mudarStatus(tarefa.id, STATUS.CONCLUIDA).catch(() => {}) },
   });
   try {
     if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-      new Notification(h.titulo, { body: 'Lembrete da sua rotina.', icon: 'assets/icone-192.png', tag: `pauta-lembrete-${h.id}` });
+      new Notification(`${emoji} ${h.titulo}`, { body: chamada, icon: 'assets/icone-192.png', tag: `pauta-lembrete-${h.id}` });
     }
   } catch {
     /* sem notificação do sistema: a do app basta */

@@ -749,6 +749,25 @@ input[type='date'].entrada {
   background: color-mix(in srgb, var(--toast-texto) 16%, transparent);
   flex-shrink: 0;
 }
+.toast__emoji {
+  width: 26px;
+  height: 26px;
+  margin-top: -1px;
+  font-size: 17px;
+  line-height: 1;
+  animation: emoji-entra 420ms var(--curva-mola) both;
+}
+@keyframes emoji-entra {
+  from {
+    transform: scale(0.4) rotate(-12deg);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast__emoji {
+    animation: none;
+  }
+}
 .toast--erro .toast__icone {
   background: var(--negativo);
   color: #fff;

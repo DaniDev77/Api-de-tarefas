@@ -17,6 +17,7 @@ import { anel, ponto, contagem, textoSequencia } from '../ui/pecas.js';
 import { abrirMenu } from '../ui/menu.js';
 import { ligarSegurar } from '../ui/segurar.js';
 import { toast } from '../ui/toast.js';
+import { emojiDiaCompleto } from '../ui/emojis.js';
 import { abrirDetalhesItem } from '../forms/item-form.js';
 import { relogio } from './foco.js';
 import { adicaoRapida } from './adicao.js';
@@ -381,7 +382,7 @@ export default {
 
       // o momento em que o dia fecha: uma vez, só quando acontece agora (não ao abrir a tela)
       if (ehHoje && chaveAntes === chave && abertosAntes > 0 && r.abertos === 0 && r.total > 0) {
-        toast(`Dia completo. ${r.feitos} de ${r.total} feitos.`, { tipo: 'sucesso' });
+        toast(`Dia completo. ${r.feitos} de ${r.total} feitos.`, { tipo: 'sucesso', emoji: emojiDiaCompleto() });
         raiz.querySelector('.saudacao')?.classList.add('saudacao--completa');
       }
       abertosAntes = r.abertos;
