@@ -3,7 +3,10 @@
 // (assets/notificacao/*.png); os outros hábitos usam emoji. É enfeite: o texto continua dizendo tudo.
 import { normalizar } from '../core/format.js';
 
-const FIGURA = (nome) => `assets/notificacao/${nome}.png`;
+// Dois conjuntos de ilustrações: 'aquarela' (padrão) e 'traco' (assets/notificacao/traco/).
+// Para trocar o estilo de todas as notificações, mude só esta linha.
+const ESTILO = 'aquarela';
+const FIGURA = (nome) => (ESTILO === 'traco' ? `assets/notificacao/traco/${nome}.png` : `assets/notificacao/${nome}.png`);
 /** A figura é uma ilustração (caminho de imagem) ou um emoji? */
 export const ehImagem = (figura) => typeof figura === 'string' && figura.startsWith('assets/');
 

@@ -762,10 +762,10 @@ input[type='date'].entrada {
   width: 36px;
   height: 36px;
   margin: -6px 0 -6px -4px;
-  padding: 3px;
-  border-radius: 10px;
-  /* o mesmo papel claro das ilustrações: o kettlebell escuro não some na notificação escura */
-  background: #f0f1f5;
+  overflow: hidden;
+  border-radius: 9px;
+  /* o papel creme das aquarelas: a ilustração vira um cartãozinho, legível na notificação clara ou escura */
+  background: #fdfaf3;
   animation: emoji-entra 420ms var(--curva-mola) both;
 }
 .toast__figura img {
