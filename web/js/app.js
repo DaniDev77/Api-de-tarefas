@@ -4,11 +4,12 @@ import { iniciarRoteador, navegar, lerRota } from './core/router.js';
 import { hora } from './core/format.js';
 import { APP, SINCRONIZAR_APOS_MS } from './config.js';
 import { store, carregarTudo, definirTema, efetivarExclusoesPendentes, perfilAtual, restanteFoco } from './state.js';
-import { indiceRotina, situacaoSerie } from './domain/rotina.js';
+import { indiceRotina, situacaoSerie, itensDoDia, resumoDia } from './domain/rotina.js';
 import { icone, marca } from './ui/icons.js';
 import { inicial } from './ui/pecas.js';
 import { iniciarDicas } from './ui/tooltip.js';
 import { iniciarLembretes } from './ui/lembretes.js';
+import { iniciarFundo, progressoDoDia } from './ui/fundo.js';
 import { abrirModal } from './ui/modal.js';
 import { fecharMenu } from './ui/menu.js';
 import { abrirComandos } from './ui/comandos.js';
@@ -284,8 +285,17 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 // ------------------------------------------------------------------ início
 
+/** O fundo ganha cor conforme o dia do perfil é cumprido. */
+function atualizarFundo(s) {
+  const perfil = perfilAtual(s);
+  if (s.fase !== 'pronto' || !perfil) return progressoDoDia(0);
+  const r = resumoDia(itensDoDia(indiceRotina(s.tarefas, perfil.id, s.habitos), new Date()));
+  progressoDoDia(r.total ? r.feitos / r.total : 0);
+}
+
 function iniciar() {
   iniciarDicas();
+  iniciarFundo();
   aplicarTema(store.get().tema);
   midiaEscura.addEventListener('change', () => aplicarTema(store.get().tema));
 
@@ -295,6 +305,7 @@ function iniciar() {
       temaAtual = s.tema;
       aplicarTema(s.tema);
     }
+    atualizarFundo(s);
     renderizar(s);
   });
 

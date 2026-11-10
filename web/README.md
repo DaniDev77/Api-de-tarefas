@@ -126,6 +126,8 @@ A área é adivinhada pelo título (água → Saúde, academia → Treino, estud
 - **Semana**: anéis mostram quanto de cada dia foi feito; ← → trocam o dia.
 - **Foco**: guarda a hora de término, então recarregar a página não perde o tempo; mantém a tela acesa e pode avisar quando terminar.
 - **Instalável**: no celular, "Adicionar à tela inicial" abre o Pauta em tela cheia (manifest + service worker).
+- **Fundo vivo**: manchas de cor macias derivam devagar atrás da folha. As cores mudam com o período do dia (manhã, tarde, noite), ficam mais fortes conforme a pauta do dia é cumprida, e uma onda na cor da área sai do botão quando um item é marcado. Em Ajustes → Aparência dá para deixar parado ou sem fundo. Só anima `transform` e `opacity`, e para sozinho se o aparelho pede menos movimento.
+- **Notificações**: entram com mola, deslizam quando outra entra ou sai, e dá para arrastar para o lado para dispensar. Item feito solta faíscas, dia completo solta confete, e o lembrete balança a figura como um sino. Passar o mouse pausa o tempo.
 
 
 
@@ -143,7 +145,8 @@ web/
 │   ├── base.css            reset e elementos básicos
 │   ├── componentes.css     botões, campos, chips, painéis, diálogos, menu, notificações, paleta
 │   ├── layout.css          lateral no computador; barra e abas no celular
-│   └── telas.css           Hoje, Progresso, Rotina, Foco, Ajustes, boas-vindas
+│   ├── telas.css           Hoje, Progresso, Rotina, Foco, Ajustes, boas-vindas
+│   └── fundo.css           o fundo vivo: manchas, onda, modos animado/parado/desligado
 └── js/
     ├── app.js              inicialização: rotas, atalhos, tema, sincronização, PWA
     ├── config.js           nome do produto, endereço da API, semanas por hábito
@@ -154,7 +157,8 @@ web/
     │   ├── enums.js        espelho de StatusTarefa e PrioriedadeTarefa + tons das áreas
     │   ├── rotina.js       hábitos, sequências, constância, períodos, datas em série (funções puras)
     │   └── frase.js        leitura das frases da adição rápida
-    ├── ui/                 ícones, diálogo, menu, notificação, dica, paleta, "segure para marcar"
+    ├── ui/                 ícones, diálogo, menu, notificação (toast.js), fundo vivo (fundo.js), figuras das notificações,
+    │                       lembretes, dica, paleta, "segure para marcar"
     ├── forms/              detalhes do item, hábito, área e perfil
     ├── vendor/charts.js    gráficos em SVG (da taste-skill)
     └── views/              hoje, adicao, boas-vindas, progresso, rotina, foco, ajustes, conexao

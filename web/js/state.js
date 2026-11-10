@@ -14,6 +14,7 @@ import { STATUS, estaAberta } from './domain/enums.js';
 import { datasDaSerie, datasParaEstender, proximosAbertos, minutosDeTexto, chaveDia, fimSugerido, intervaloEntre, indiceRotina } from './domain/rotina.js';
 import { espalharHorarios } from './domain/frase.js';
 import { toast } from './ui/toast.js';
+import { emojiDe, emojiFeito } from './ui/emojis.js';
 
 // index.html?demo abre direto no modo demonstração (link para apresentar o sistema)
 const linkDemo = new URLSearchParams(location.search).has('demo');
@@ -22,6 +23,7 @@ const preferencias = {
   apiUrl: ler('apiUrl', API_PADRAO),
   fonte: linkDemo ? 'demo' : ler('fonte', 'api'),
   tema: ler('tema', 'sistema'),
+  fundo: ler('fundo', 'vivo'),
 };
 
 export const store = criarStore({
@@ -30,6 +32,7 @@ export const store = criarStore({
   fonte: preferencias.fonte, // api | demo
   apiUrl: preferencias.apiUrl,
   tema: preferencias.tema, // sistema | claro | escuro
+  fundo: ['vivo', 'parado', 'desligado'].includes(preferencias.fundo) ? preferencias.fundo : 'vivo', // o fundo animado
   perfilId: ler(`perfil:${preferencias.fonte}`, null), // o Usuario da API que está usando o app
   usuarios: [],
   categorias: [],
@@ -170,6 +173,13 @@ export function definirTema(tema) {
   store.set({ tema });
 }
 
+/** O fundo animado: 'vivo', 'parado' ou 'desligado'. */
+export function definirFundo(fundo) {
+  gravar('fundo', fundo);
+  document.documentElement.dataset.fundo = fundo;
+  store.set({ fundo });
+}
+
 export function definirPerfil(id) {
   gravar(`perfil:${store.get().fonte}`, id);
   store.set({ perfilId: id });
@@ -273,7 +283,7 @@ export async function criarHabito(h, { mensagem } = {}) {
     }
     if (mensagem !== null) {
       const quando = diferencaDias(novo.dataInicio, new Date()) > 0 ? ` a partir de ${diaMes(novo.dataInicio)}` : '';
-      toast(mensagem ?? `${novo.titulo} entrou na rotina${quando}`, { tipo: 'sucesso' });
+      toast(mensagem ?? `${novo.titulo} entrou na rotina${quando}`, { tipo: 'sucesso', emoji: emojiDe(novo.titulo) });
     }
     return novo;
   } catch (e) {
@@ -504,6 +514,8 @@ export function mudarStatus(id, status, { desfazer = true } = {}) {
     if (desfazer) {
       toast(MENSAGEM_STATUS[status](tarefa), {
         tipo: 'sucesso',
+        emoji: status === STATUS.CONCLUIDA ? emojiFeito() : undefined,
+        efeito: status === STATUS.CONCLUIDA ? 'faiscas' : undefined,
         acao: { rotulo: 'Desfazer', fn: () => atualizarTarefa(id, { status: anterior }, { mensagem: null }).catch(() => {}) },
       });
     }
