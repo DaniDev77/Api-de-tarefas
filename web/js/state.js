@@ -23,6 +23,7 @@ const preferencias = {
   apiUrl: ler('apiUrl', API_PADRAO),
   fonte: linkDemo ? 'demo' : ler('fonte', 'api'),
   tema: ler('tema', 'sistema'),
+  fundo: ler('fundo', 'vivo'),
 };
 
 export const store = criarStore({
@@ -31,6 +32,7 @@ export const store = criarStore({
   fonte: preferencias.fonte, // api | demo
   apiUrl: preferencias.apiUrl,
   tema: preferencias.tema, // sistema | claro | escuro
+  fundo: ['vivo', 'parado', 'desligado'].includes(preferencias.fundo) ? preferencias.fundo : 'vivo', // o fundo animado
   perfilId: ler(`perfil:${preferencias.fonte}`, null), // o Usuario da API que está usando o app
   usuarios: [],
   categorias: [],
@@ -169,6 +171,13 @@ export async function testarConexao(url) {
 export function definirTema(tema) {
   gravar('tema', tema);
   store.set({ tema });
+}
+
+/** O fundo animado: 'vivo', 'parado' ou 'desligado'. */
+export function definirFundo(fundo) {
+  gravar('fundo', fundo);
+  document.documentElement.dataset.fundo = fundo;
+  store.set({ fundo });
 }
 
 export function definirPerfil(id) {
@@ -506,6 +515,7 @@ export function mudarStatus(id, status, { desfazer = true } = {}) {
       toast(MENSAGEM_STATUS[status](tarefa), {
         tipo: 'sucesso',
         emoji: status === STATUS.CONCLUIDA ? emojiFeito() : undefined,
+        efeito: status === STATUS.CONCLUIDA ? 'faiscas' : undefined,
         acao: { rotulo: 'Desfazer', fn: () => atualizarTarefa(id, { status: anterior }, { mensagem: null }).catch(() => {}) },
       });
     }

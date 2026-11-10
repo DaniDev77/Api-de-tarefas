@@ -699,6 +699,9 @@ input[type='date'].entrada {
 }
 
 /* ------------------------------------------------ notificações */
+/* A entrada, a saída, o deslizar das vizinhas e o arrastar são feitos em js/ui/toast.js (Web Animations).
+   Aqui ficam o desenho e os movimentos de dentro: o ícone que salta, o "check" que se desenha,
+   a barra do tempo, o balanço do lembrete e as partículas. */
 
 .toasts {
   position: fixed;
@@ -722,22 +725,21 @@ input[type='date'].entrada {
   box-shadow: var(--sombra-flutua); /* taste-skill-ignore: elemento flutuante */
   overflow: hidden;
   pointer-events: auto;
-  animation: toastEntra var(--medio) var(--curva);
+  touch-action: pan-y; /* arrastar para o lado dispensa; para cima e para baixo a página rola */
+  user-select: none;
+  cursor: grab;
+  /* "translate" é separado de "transform": o levantar ao passar o mouse não briga com as animações */
+  transition: translate var(--rapido) var(--curva);
+}
+.toast:hover {
+  translate: 0 -2px;
+}
+.toast.arrastando {
+  cursor: grabbing;
+  transition: none;
 }
 .toast.saindo {
-  animation: toastSai var(--rapido) var(--curva) forwards;
-}
-@keyframes toastEntra {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.98);
-  }
-}
-@keyframes toastSai {
-  to {
-    opacity: 0;
-    transform: translateY(6px);
-  }
+  pointer-events: none;
 }
 .toast__icone {
   display: grid;
@@ -748,6 +750,28 @@ input[type='date'].entrada {
   border-radius: 50%;
   background: color-mix(in srgb, var(--toast-texto) 16%, transparent);
   flex-shrink: 0;
+  animation: icone-salta 520ms 90ms var(--curva-mola) both;
+}
+@keyframes icone-salta {
+  from {
+    transform: scale(0.3) rotate(-14deg);
+    opacity: 0;
+  }
+}
+/* sucesso: o círculo ganha a cor de ação e o "check" se desenha */
+.toast--sucesso .toast__icone:not(.toast__emoji, .toast__figura) {
+  background: color-mix(in srgb, var(--toast-acao) 26%, transparent);
+  color: var(--toast-acao);
+}
+.toast--sucesso .toast__icone:not(.toast__emoji, .toast__figura) svg path {
+  stroke-dasharray: 26;
+  stroke-dashoffset: 26;
+  animation: desenhar 420ms 300ms var(--curva) forwards;
+}
+@keyframes desenhar {
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 .toast__emoji {
   width: 26px;
@@ -755,7 +779,6 @@ input[type='date'].entrada {
   margin-top: -1px;
   font-size: 17px;
   line-height: 1;
-  animation: emoji-entra 420ms var(--curva-mola) both;
 }
 /* ilustração do Pauta (academia, água, estudo, conclusão): sem o círculo de fundo, um pouco maior */
 .toast__figura {
@@ -766,24 +789,12 @@ input[type='date'].entrada {
   border-radius: 9px;
   /* o papel creme das aquarelas: a ilustração vira um cartãozinho, legível na notificação clara ou escura */
   background: #fdfaf3;
-  animation: emoji-entra 420ms var(--curva-mola) both;
 }
 .toast__figura img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-}
-@keyframes emoji-entra {
-  from {
-    transform: scale(0.4) rotate(-12deg);
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .toast__emoji,
-  .toast__figura {
-    animation: none;
-  }
+  -webkit-user-drag: none;
 }
 .toast--erro .toast__icone {
   background: var(--negativo);
@@ -798,6 +809,13 @@ input[type='date'].entrada {
   padding-top: 2px;
   font-size: var(--t-corpo);
   font-weight: 500;
+  animation: texto-chega 420ms 120ms var(--curva) both;
+}
+@keyframes texto-chega {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
 }
 .toast__detalhe {
   margin-top: 2px;
@@ -813,9 +831,16 @@ input[type='date'].entrada {
   color: var(--toast-acao);
   font-size: var(--t-corpo);
   font-weight: 600;
+  animation: texto-chega 420ms 200ms var(--curva) both;
+  transition:
+    background-color var(--rapido),
+    scale var(--rapido) var(--curva);
 }
 .toast__acao:hover {
   background: color-mix(in srgb, var(--toast-texto) 14%, transparent);
+}
+.toast__acao:active {
+  scale: 0.94;
 }
 .toast__fechar {
   display: grid;
@@ -824,20 +849,29 @@ input[type='date'].entrada {
   height: 28px;
   border-radius: 8px;
   opacity: 0.65;
+  transition:
+    opacity var(--rapido),
+    rotate var(--medio) var(--curva);
 }
 .toast__fechar:hover {
   opacity: 1;
   background: color-mix(in srgb, var(--toast-texto) 14%, transparent);
+  rotate: 90deg;
 }
+/* o tempo que falta: uma barra na cor de ação que vai encolhendo */
 .toast__tempo {
   position: absolute;
   left: 0;
   bottom: 0;
-  height: 2px;
+  height: 3px;
   width: 100%;
-  background: color-mix(in srgb, var(--toast-texto) 40%, transparent);
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--toast-acao) 55%, transparent), var(--toast-acao));
   transform-origin: left;
   animation: tempo var(--duracao) linear forwards;
+}
+.toast--erro .toast__tempo {
+  background: var(--negativo);
 }
 .toast--fixo .toast__tempo {
   display: none;
@@ -850,11 +884,119 @@ input[type='date'].entrada {
     transform: scaleX(0);
   }
 }
+
+/* lembrete: a figura balança como um sino (três vezes, com pausa) e um brilho pulsa na borda */
+.toast--chamar .toast__icone {
+  transform-origin: 50% 12%;
+  animation:
+    icone-salta 520ms 90ms var(--curva-mola) both,
+    sino 2600ms 700ms var(--curva) 3;
+}
+@keyframes sino {
+  0%,
+  42%,
+  100% {
+    rotate: 0deg;
+  }
+  6% {
+    rotate: 14deg;
+  }
+  14% {
+    rotate: -12deg;
+  }
+  22% {
+    rotate: 8deg;
+  }
+  30% {
+    rotate: -5deg;
+  }
+  36% {
+    rotate: 2deg;
+  }
+}
+.toast--chamar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 2px var(--toast-acao);
+  opacity: 0;
+  pointer-events: none;
+  animation: brilho 2600ms 700ms var(--curva) 3;
+}
+@keyframes brilho {
+  0%,
+  45%,
+  100% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+}
+/* dia completo: a medalha dá um giro ao chegar */
+.toast--festa .toast__icone {
+  animation: medalha 900ms 90ms var(--curva-mola) both;
+}
+@keyframes medalha {
+  0% {
+    transform: scale(0.2) rotate(-200deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.25) rotate(12deg);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* partículas (faíscas de um item feito, confete do dia completo): saem de um ponto fixo na tela */
+.confetes {
+  position: fixed;
+  z-index: 81;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.confete {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  will-change: transform, opacity;
+}
+.confete--fita {
+  top: -5px;
+  left: -2.5px;
+  width: 5px;
+  height: 10px;
+  border-radius: 1.5px;
+}
+
 @media (max-width: 1023px) {
   .toasts {
     right: 50%;
     transform: translateX(50%);
     bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast__icone,
+  .toast__texto,
+  .toast__acao,
+  .toast--chamar::after {
+    animation: none;
+  }
+  .toast--sucesso .toast__icone svg path {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+  .toast:hover {
+    translate: none;
   }
 }
 

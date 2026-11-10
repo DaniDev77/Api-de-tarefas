@@ -1,7 +1,7 @@
 // Service worker: deixa o Pauta abrir sem internet (a moldura do app fica guardada no aparelho).
 // Estratégia "rede primeiro": com internet, sempre a versão mais nova dos arquivos; sem, a guardada.
 // As chamadas à API (outro endereço) nunca passam pelo cache: os dados vêm sempre do banco.
-const VERSAO = 'pauta-rotina-v5';
+const VERSAO = 'pauta-rotina-v6';
 const ARQUIVOS = [
   './',
   'assets/favicon.svg',
@@ -39,6 +39,8 @@ const ARQUIVOS = [
   'js/state.js',
   'js/ui/comandos.js',
   'js/ui/emojis.js',
+  'js/ui/fundo.js',
+  'css/fundo.css',
   'assets/notificacao/academia.png',
   'assets/notificacao/agua.png',
   'assets/notificacao/estudo.png',

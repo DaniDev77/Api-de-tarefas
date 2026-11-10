@@ -1544,6 +1544,12 @@ select.entrada--compacta {
 .ajuste__painel > .segmentos {
   justify-self: start;
 }
+.ajuste__sub {
+  display: grid;
+  gap: var(--e-2);
+  justify-items: start;
+  margin-top: var(--e-5);
+}
 .ajuste__ok {
   display: flex;
   align-items: center;

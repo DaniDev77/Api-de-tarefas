@@ -27,6 +27,7 @@ function avisar(h, tarefa) {
   const chamada = chamadaLembrete();
   toast(`${h.titulo}: ${chamada}`, {
     emoji,
+    efeito: 'chamar',
     duracao: 12000,
     acao: { rotulo: 'Fiz', fn: () => mudarStatus(tarefa.id, STATUS.CONCLUIDA).catch(() => {}) },
   });

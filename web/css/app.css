@@ -1,12 +1,14 @@
 /* Pauta: folha de estilos principal.
    A ordem das camadas define a prioridade (a última vence), então a especificidade dos seletores não briga. */
-@layer tokens, base, componentes, layout, telas, utilitarios;
+@layer tokens, base, componentes, layout, telas, fundo, utilitarios;
 
 @import url('tokens.css') layer(tokens);
 @import url('base.css') layer(base);
 @import url('componentes.css') layer(componentes);
 @import url('layout.css') layer(layout);
 @import url('telas.css') layer(telas);
+/* o fundo vivo vem depois do layout: ele deixa a folha translúcida, e a camada mais tarde vence */
+@import url('fundo.css') layer(fundo);
 
 @layer utilitarios {
   .sr-only {
