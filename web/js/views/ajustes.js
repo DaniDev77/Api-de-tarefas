@@ -6,7 +6,7 @@ import { icone } from '../ui/icons.js';
 import { confirmar } from '../ui/modal.js';
 import { toast } from '../ui/toast.js';
 import { inicial, tituloTela } from '../ui/pecas.js';
-import { store, perfilAtual, definirPerfil, definirFonte, definirApiUrl, definirTema, testarConexao, reiniciarDemonstracao, carregarTudo } from '../state.js';
+import { store, perfilAtual, definirPerfil, definirFonte, definirApiUrl, definirTema, definirFundo, testarConexao, reiniciarDemonstracao, carregarTudo } from '../state.js';
 import { abrirFormPerfil } from '../forms/perfil-form.js';
 import { API_PADRAO, APP } from '../config.js';
 
@@ -113,6 +113,17 @@ export default {
                 ['claro', 'Claro', 'sun'],
                 ['escuro', 'Escuro', 'moon'],
               ].map(([v, r, i]) => html`<label class="segmento"><input type="radio" name="tema" value="${v}" ${s.tema === v ? 'checked' : ''}><span>${icone(i, { tamanho: 15 })}${r}</span></label>`)}
+            </div>
+            <div class="ajuste__sub">
+              <p class="campo__rotulo" id="aj-fundo">Fundo</p>
+              <div class="segmentos" role="radiogroup" aria-labelledby="aj-fundo">
+                ${[
+                  ['vivo', 'Animado', 'sparkles'],
+                  ['parado', 'Parado', 'pause'],
+                  ['desligado', 'Sem fundo', 'square'],
+                ].map(([v, r, i]) => html`<label class="segmento"><input type="radio" name="fundo" value="${v}" ${s.fundo === v ? 'checked' : ''}><span>${icone(i, { tamanho: 15 })}${r}</span></label>`)}
+              </div>
+              <p class="campo__ajuda">As cores do fundo mudam com o período do dia e ficam mais vivas conforme você cumpre a pauta. Se o aparelho pede menos movimento, o fundo fica parado.</p>
             </div>`,
           })}
 
@@ -151,6 +162,7 @@ export default {
         toast(e.target.value === 'demo' ? 'Modo demonstração ligado' : 'Conectando à API', { tipo: 'info' });
       }
       if (e.target.name === 'tema') definirTema(e.target.value);
+      if (e.target.name === 'fundo') definirFundo(e.target.value);
     });
 
     raiz.addEventListener('submit', (e) => {
@@ -217,7 +229,7 @@ export default {
 
     desenhar(estado);
     let assinatura = '';
-    const assinar = (s) => `${s.fonte}|${s.apiUrl}|${s.tema}|${s.perfilId}|${s.usuarios.map((u) => u.id + u.nome + u.email + u.telefone).join()}|${s.sincronizadoEm}`;
+    const assinar = (s) => `${s.fonte}|${s.apiUrl}|${s.tema}|${s.fundo}|${s.perfilId}|${s.usuarios.map((u) => u.id + u.nome + u.email + u.telefone).join()}|${s.sincronizadoEm}`;
     assinatura = assinar(estado);
     return {
       atualizar(s) {

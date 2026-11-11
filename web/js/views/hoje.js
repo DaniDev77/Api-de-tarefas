@@ -17,6 +17,8 @@ import { anel, ponto, contagem, textoSequencia } from '../ui/pecas.js';
 import { abrirMenu } from '../ui/menu.js';
 import { ligarSegurar } from '../ui/segurar.js';
 import { toast } from '../ui/toast.js';
+import { emojiDiaCompleto } from '../ui/emojis.js';
+import { pulsarFundo, festejarFundo } from '../ui/fundo.js';
 import { abrirDetalhesItem } from '../forms/item-form.js';
 import { relogio } from './foco.js';
 import { adicaoRapida } from './adicao.js';
@@ -177,7 +179,7 @@ function linhaItem(t, indice, ehHoje, agora, s) {
       ${metaHtml}
     </button>
     <button type="button" class="botao-icone item__mais" data-mais="${t.id}" aria-label="Mais ações: ${t.titulo}" aria-haspopup="menu" aria-expanded="false">${icone('ellipsis', { tamanho: 18 })}</button>
-    <button type="button" class="marcar" data-marcar="${t.id}" aria-pressed="${feito}" aria-label="${acao}">
+    <button type="button" class="marcar" data-marcar="${t.id}" aria-pressed="${feito ? 'true' : 'false'}" aria-label="${acao}">
       <svg class="marcar__svg" viewBox="0 0 40 40" aria-hidden="true">
         <circle class="marcar__fundo" cx="20" cy="20" r="17"/>
         <circle class="marcar__carga" cx="20" cy="20" r="17" transform="rotate(-90 20 20)"/>
@@ -381,7 +383,8 @@ export default {
 
       // o momento em que o dia fecha: uma vez, só quando acontece agora (não ao abrir a tela)
       if (ehHoje && chaveAntes === chave && abertosAntes > 0 && r.abertos === 0 && r.total > 0) {
-        toast(`Dia completo. ${r.feitos} de ${r.total} feitos.`, { tipo: 'sucesso' });
+        toast(`Dia completo. ${r.feitos} de ${r.total} feitos.`, { tipo: 'sucesso', emoji: emojiDiaCompleto(), efeito: 'festa', duracao: 5200 });
+        festejarFundo();
         raiz.querySelector('.saudacao')?.classList.add('saudacao--completa');
       }
       abertosAntes = r.abertos;
@@ -390,12 +393,14 @@ export default {
 
     // ----- eventos (delegação: a lista é redesenhada, os ouvintes ficam na raiz)
 
-    const desligarSegurar = ligarSegurar(raiz, (id) => {
+    const desligarSegurar = ligarSegurar(raiz, (id, botao) => {
       const s = store.get();
       const t = s.tarefas.find((x) => x.id === id);
       if (!t) return;
-      if (estaFeita(t) || foiPulada(t)) mudarStatus(id, STATUS.A_FAZER).catch(() => {});
-      else if (s.foco?.tarefaId === id) encerrarFoco({ concluir: true });
+      if (estaFeita(t) || foiPulada(t)) return mudarStatus(id, STATUS.A_FAZER).catch(() => {});
+      // marcou como feito: uma onda na cor da área sai do botão e atravessa o fundo
+      pulsarFundo(botao ?? raiz.querySelector(`[data-marcar="${id}"]`));
+      if (s.foco?.tarefaId === id) encerrarFoco({ concluir: true });
       else mudarStatus(id, STATUS.CONCLUIDA).catch(() => {});
     });
 
@@ -417,6 +422,7 @@ export default {
       const feito = e.target.closest('[data-feito]');
       if (feito) {
         const id = Number(feito.dataset.feito);
+        pulsarFundo(raiz.querySelector(`[data-marcar="${id}"]`) ?? feito);
         if (store.get().foco?.tarefaId === id) encerrarFoco({ concluir: true });
         else mudarStatus(id, STATUS.CONCLUIDA).catch(() => {});
         return;

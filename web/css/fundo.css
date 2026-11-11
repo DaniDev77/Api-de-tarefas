@@ -1,0 +1,224 @@
+/* Fundo vivo: manchas de cor macias que derivam devagar atrás da folha.
+   - As cores vêm das áreas e mudam com o período do dia (manhã, tarde, noite).
+   - O fundo ganha força conforme o dia é cumprido (--dia, de 0 a 1) e solta uma onda quando um item é marcado.
+   - Só anima transform e opacity (o navegador compõe na placa de vídeo; não redesenha a página).
+   - html[data-fundo]: "vivo" (padrão), "parado" (as manchas ficam, sem movimento) ou "desligado".
+   - Com "reduzir movimento" ligado no sistema, o fundo fica parado. */
+
+.fundo {
+  /* as quatro manchas: manhã = amanhecer quente */
+  --m1: var(--tom-3);
+  --m2: var(--tom-4);
+  --m3: var(--acento);
+  --m4: var(--tom-0);
+  --alfa: 40%;
+  --dia: 0;
+  --px: 0;
+  --py: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: var(--moldura);
+  pointer-events: none;
+  contain: strict;
+}
+.fundo[data-periodo='tarde'] {
+  --m1: var(--acento);
+  --m2: var(--tom-0);
+  --m3: var(--tom-2);
+  --m4: var(--tom-3);
+}
+.fundo[data-periodo='noite'] {
+  --m1: var(--tom-1);
+  --m2: var(--tom-0);
+  --m3: var(--tom-4);
+  --m4: var(--acento);
+}
+
+/* a camada acompanha o ponteiro bem de leve (profundidade) e clareia conforme o dia é cumprido */
+.fundo__camada {
+  position: absolute;
+  inset: 0;
+  opacity: calc(0.62 + 0.38 * var(--dia));
+  transform: translate3d(calc(var(--px) * 18px), calc(var(--py) * 18px), 0);
+  transition:
+    transform 900ms var(--curva),
+    opacity 1400ms var(--curva);
+}
+
+.fundo__mancha {
+  position: absolute;
+  width: 72vmax;
+  height: 72vmax;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--c) var(--alfa), transparent) 0%,
+    color-mix(in srgb, var(--c) calc(var(--alfa) * 0.42), transparent) 46%,
+    transparent 100%
+  );
+  will-change: transform;
+}
+/* cada mancha tem caminho e duração próprios: o desenho nunca se repete igual */
+.fundo__mancha--1 {
+  --c: var(--m1);
+  top: -30vmax;
+  left: -24vmax;
+  animation: deriva-1 34s ease-in-out infinite alternate;
+}
+.fundo__mancha--2 {
+  --c: var(--m2);
+  top: -34vmax;
+  right: -22vmax;
+  animation: deriva-2 44s ease-in-out infinite alternate;
+}
+.fundo__mancha--3 {
+  --c: var(--m3);
+  bottom: -36vmax;
+  left: 8vmax;
+  animation: deriva-3 38s ease-in-out infinite alternate;
+}
+.fundo__mancha--4 {
+  --c: var(--m4);
+  right: -28vmax;
+  bottom: -30vmax;
+  width: 58vmax;
+  height: 58vmax;
+  animation: deriva-4 52s ease-in-out infinite alternate;
+}
+@keyframes deriva-1 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(16vw, 12vh, 0) scale(1.14);
+  }
+  100% {
+    transform: translate3d(6vw, 30vh, 0) scale(0.92);
+  }
+}
+@keyframes deriva-2 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+  50% {
+    transform: translate3d(-22vw, 10vh, 0) scale(0.9);
+  }
+  100% {
+    transform: translate3d(-8vw, 26vh, 0) scale(1.12);
+  }
+}
+@keyframes deriva-3 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.94);
+  }
+  50% {
+    transform: translate3d(20vw, -14vh, 0) scale(1.1);
+  }
+  100% {
+    transform: translate3d(38vw, -4vh, 0) scale(1);
+  }
+}
+@keyframes deriva-4 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-14vw, -18vh, 0) scale(1.18);
+  }
+  100% {
+    transform: translate3d(-30vw, -6vh, 0) scale(0.96);
+  }
+}
+
+/* a onda de um item marcado: um anel na cor da área, que cresce a partir do botão e some */
+.fundo__onda {
+  position: absolute;
+  width: 150vmax;
+  height: 150vmax;
+  margin: -75vmax 0 0 -75vmax;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    transparent 58%,
+    color-mix(in srgb, var(--c, var(--acento)) 62%, transparent) 76%,
+    color-mix(in srgb, var(--c, var(--acento)) 24%, transparent) 90%,
+    transparent 100%
+  );
+  opacity: 0;
+  animation: onda 1700ms cubic-bezier(0.16, 0.7, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes onda {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.02);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* dia completo: por alguns segundos o fundo fica com a força toda (e saem três ondas do centro) */
+.fundo--festa .fundo__camada {
+  opacity: 1;
+  transition: opacity 500ms var(--curva);
+}
+
+/* tema escuro: brilhos mais contidos */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro']) .fundo {
+    --alfa: 30%;
+  }
+}
+:root[data-tema='escuro'] .fundo {
+  --alfa: 30%;
+}
+
+/* com o fundo ligado, a folha fica levemente translúcida para a cor passar por baixo;
+   os painéis e campos continuam opacos (o texto mantém o contraste) */
+:root:not([data-fundo='desligado']) .folha {
+  background: color-mix(in srgb, var(--folha) 70%, transparent);
+}
+.app {
+  position: relative;
+  z-index: 1;
+}
+@media (max-width: 1023px) {
+  /* tela pequena: as manchas se sobrepõem mais, então a folha segura um pouco mais de branco
+     (o texto de apoio continua acima de 4,5:1 no ponto mais colorido) */
+  :root:not([data-fundo='desligado']) .folha {
+    background: color-mix(in srgb, var(--folha) 78%, transparent);
+  }
+  /* no celular a barra do topo e as abas ficam sobre o conteúdo que rola: vidro fosco */
+  :root:not([data-fundo='desligado']) .topo,
+  :root:not([data-fundo='desligado']) .abas {
+    background: color-mix(in srgb, var(--folha) 84%, transparent);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
+}
+
+/* parado: as manchas ficam onde estão */
+:root[data-fundo='parado'] .fundo__mancha {
+  animation: none;
+}
+:root[data-fundo='parado'] .fundo__camada {
+  transform: none;
+}
+:root[data-fundo='desligado'] .fundo {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fundo__mancha {
+    animation: none;
+  }
+  .fundo__camada {
+    transform: none;
+  }
+  .fundo__onda {
+    display: none;
+  }
+}
